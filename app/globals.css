@@ -1,0 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply font-sans antialiased text-gray-800;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-navy-600 text-white hover:bg-navy-700 active:scale-95;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-navy-600 border-2 border-navy-600 hover:bg-navy-50 active:scale-95;
+  }
+  
+  .btn-mint {
+    @apply bg-mint-500 text-white hover:bg-mint-600 active:scale-95;
+  }
+  
+  .btn-lg {
+    @apply px-8 py-4 text-lg;
+  }
+  
+  .section {
+    @apply py-16 md:py-24;
+  }
+  
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-lg p-6 transition-all duration-200 hover:shadow-xl;
+  }
+  
+  .gradient-hero {
+    background: linear-gradient(135deg, #1E3A5F 0%, #0F1E30 50%, #1E3A5F 100%);
+  }
+  
+  .gradient-mint {
+    background: linear-gradient(135deg, #2ECC71 0%, #27AE60 100%);
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-mint-400 to-mint-600;
+  }
+}
+
+/* Leaflet map overrides */
+.leaflet-container {
+  font-family: 'Nunito', sans-serif;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply rounded-xl shadow-lg;
+}
+
+.leaflet-popup-content {
+  @apply m-0 p-4;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-navy-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-navy-400;
+}
+
