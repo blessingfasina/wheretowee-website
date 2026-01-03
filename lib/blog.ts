@@ -127,7 +127,7 @@ export async function getCategories(): Promise<string[]> {
     return [];
   }
 
-  const categories = [...new Set(data?.map(post => post.category) || [])];
+  const categories = Array.from(new Set(data?.map(post => post.category) || []));
   return categories;
 }
 
