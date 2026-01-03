@@ -1,25 +1,21 @@
-import type { Metadata } from 'next';
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   Smartphone,
   Star,
-  Download,
+  Mail,
   CheckCircle2,
   MapPin,
   Bell,
   WifiOff,
   Shield,
+  Sparkles,
+  Clock,
+  PartyPopper,
+  Loader2,
 } from 'lucide-react';
-
-export const metadata: Metadata = {
-  title: 'Download Where To Wee - Free Toilet Finder App for iOS & Android',
-  description:
-    'Download the free Where To Wee app for iOS and Android. Find public toilets near you with offline access, accessibility filters, and user ratings.',
-  openGraph: {
-    title: 'Download Where To Wee - Free Toilet Finder App',
-    description: 'Get the free app to find public toilets near you. Available on iOS and Android.',
-  },
-};
 
 const features = [
   {
@@ -35,7 +31,7 @@ const features = [
   {
     icon: Bell,
     title: 'Smart Notifications',
-    description: 'Get alerts when you\'re near your saved favourite toilets.',
+    description: "Get alerts when you're near your saved favourite toilets.",
   },
   {
     icon: Shield,
@@ -44,25 +40,52 @@ const features = [
   },
 ];
 
-const reviews = [
-  {
-    name: 'Sarah M.',
-    rating: 5,
-    text: 'As a mum with young kids, this app is a lifesaver! Always know where the nearest baby changing is.',
-  },
-  {
-    name: 'David P.',
-    rating: 5,
-    text: 'Finally an app that shows wheelchair accessible toilets. Makes day trips so much easier.',
-  },
-  {
-    name: 'Emma T.',
-    rating: 5,
-    text: 'Simple, fast, and actually works. Found a toilet in 2 minutes flat. Brilliant!',
-  },
+const earlyBirdPerks = [
+  'Be the first to download when we launch',
+  'Exclusive early access to new features',
+  'Help shape the app with your feedback',
+  'Free forever - no premium features locked',
 ];
 
-export default function DownloadPage() {
+export default function WaitlistPage() {
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !email.includes('@')) {
+      setStatus('error');
+      setMessage('Please enter a valid email address');
+      return;
+    }
+
+    setStatus('loading');
+
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStatus('success');
+        setMessage(data.message || "You're on the list! We'll notify you when the app launches.");
+        setEmail('');
+      } else {
+        setStatus('error');
+        setMessage(data.error || 'Something went wrong. Please try again.');
+      }
+    } catch {
+      setStatus('error');
+      setMessage('Unable to join waitlist. Please try again later.');
+    }
+  };
+
   return (
     <>
       {/* Hero */}
@@ -70,60 +93,104 @@ export default function DownloadPage() {
         <div className="container-custom">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
-                <span className="text-sm font-semibold">Available on iOS & Android</span>
+              {/* Coming Soon Badge */}
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full px-4 py-2 mb-6 shadow-lg">
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-bold">Coming Soon to iOS & Android</span>
               </div>
+
               <h1 className="text-4xl md:text-5xl font-bold mb-6">
-                Download the <span className="text-mint-400">Free App</span>
+                Be the First to <span className="text-mint-400">Find Relief</span>
               </h1>
               <p className="text-lg text-gray-300 mb-8 max-w-xl mx-auto lg:mx-0">
-                Find clean, accessible public toilets wherever you are in the UK. Free to download,
-                no account required.
+                Where To Wee is launching soon! Join the waitlist to be notified when the app
+                is available for download. It's completely free.
               </p>
 
-              {/* App Store Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
-                <a
-                  href="#"
-                  className="inline-flex items-center justify-center gap-3 bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl transition-colors"
-                >
-                  <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-                  </svg>
-                  <div className="text-left">
-                    <div className="text-xs">Download on the</div>
-                    <div className="text-lg font-semibold -mt-1">App Store</div>
+              {/* Waitlist Form */}
+              {status === 'success' ? (
+                <div className="bg-mint-500/20 backdrop-blur-sm border border-mint-400/30 rounded-2xl p-6 max-w-md mx-auto lg:mx-0">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 bg-mint-500 rounded-full flex items-center justify-center">
+                      <PartyPopper className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">You're on the list!</h3>
+                      <p className="text-mint-200 text-sm">We'll email you when we launch</p>
+                    </div>
                   </div>
-                </a>
-                <a
-                  href="#"
-                  className="inline-flex items-center justify-center gap-3 bg-black hover:bg-gray-900 text-white px-6 py-3 rounded-xl transition-colors"
-                >
-                  <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M3 20.5v-17c0-.83.67-1.5 1.5-1.5h15c.83 0 1.5.67 1.5 1.5v17c0 .83-.67 1.5-1.5 1.5h-15c-.83 0-1.5-.67-1.5-1.5zm12.5-8.5l-6-6v12l6-6z" />
-                  </svg>
-                  <div className="text-left">
-                    <div className="text-xs">GET IT ON</div>
-                    <div className="text-lg font-semibold -mt-1">Google Play</div>
+                  <p className="text-gray-300 text-sm">{message}</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="max-w-md mx-auto lg:mx-0">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-mint-400 focus:border-transparent"
+                        disabled={status === 'loading'}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={status === 'loading'}
+                      className="px-8 py-4 bg-mint-500 hover:bg-mint-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                    >
+                      {status === 'loading' ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Joining...
+                        </>
+                      ) : (
+                        'Join Waitlist'
+                      )}
+                    </button>
                   </div>
-                </a>
-              </div>
+                  {status === 'error' && (
+                    <p className="mt-3 text-red-300 text-sm">{message}</p>
+                  )}
+                  <p className="mt-4 text-gray-400 text-sm">
+                    🔒 No spam, ever. We'll only email you when the app launches.
+                  </p>
+                </form>
+              )}
 
-              {/* Rating */}
-              <div className="flex items-center gap-4 justify-center lg:justify-start">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+              {/* Social Proof */}
+              <div className="mt-8 flex items-center gap-4 justify-center lg:justify-start">
+                <div className="flex -space-x-2">
+                  {['😊', '🙂', '😄', '🤩', '😎'].map((emoji, i) => (
+                    <div
+                      key={i}
+                      className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-lg border-2 border-white/30"
+                    >
+                      {emoji}
+                    </div>
                   ))}
                 </div>
-                <span className="text-gray-300">4.8 rating • 10K+ downloads</span>
+                <span className="text-gray-300">
+                  <span className="font-bold text-white">500+</span> people waiting
+                </span>
               </div>
             </div>
 
             {/* Phone Mockup */}
             <div className="hidden lg:flex justify-center">
               <div className="relative">
-                <div className="w-72 h-[580px] bg-gradient-to-b from-white to-gray-100 rounded-[3rem] border-8 border-gray-300 shadow-2xl flex flex-col overflow-hidden">
+                {/* Coming Soon Overlay */}
+                <div className="absolute inset-0 z-10 flex items-center justify-center">
+                  <div className="bg-navy-800/90 backdrop-blur-sm rounded-2xl px-6 py-3 shadow-xl border border-white/10">
+                    <div className="flex items-center gap-2 text-white">
+                      <Clock className="w-5 h-5 text-mint-400" />
+                      <span className="font-bold">Launching Soon</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-72 h-[580px] bg-gradient-to-b from-white to-gray-100 rounded-[3rem] border-8 border-gray-300 shadow-2xl flex flex-col overflow-hidden opacity-80">
                   {/* Status bar */}
                   <div className="h-12 bg-navy-600 flex items-center justify-center">
                     <span className="text-white text-sm font-semibold">🚻 Where To Wee</span>
@@ -136,12 +203,21 @@ export default function DownloadPage() {
                         <span className="text-sm text-mint-600">0.2 km</span>
                       </div>
                       <div className="flex gap-1 mb-2">
-                        <span className="bg-mint-100 text-mint-700 text-xs px-2 py-0.5 rounded-full">Free</span>
-                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">♿</span>
+                        <span className="bg-mint-100 text-mint-700 text-xs px-2 py-0.5 rounded-full">
+                          Free
+                        </span>
+                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                          ♿
+                        </span>
                       </div>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-4 h-4 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+                            }`}
+                          />
                         ))}
                       </div>
                     </div>
@@ -151,13 +227,24 @@ export default function DownloadPage() {
                         <span className="text-sm text-mint-600">0.4 km</span>
                       </div>
                       <div className="flex gap-1 mb-2">
-                        <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">20p</span>
-                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">♿</span>
-                        <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">🍼</span>
+                        <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                          20p
+                        </span>
+                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                          ♿
+                        </span>
+                        <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                          🍼
+                        </span>
                       </div>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-4 h-4 ${i < 5 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < 5 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+                            }`}
+                          />
                         ))}
                       </div>
                     </div>
@@ -167,11 +254,18 @@ export default function DownloadPage() {
                         <span className="text-sm text-mint-600">0.5 km</span>
                       </div>
                       <div className="flex gap-1 mb-2">
-                        <span className="bg-mint-100 text-mint-700 text-xs px-2 py-0.5 rounded-full">Free</span>
+                        <span className="bg-mint-100 text-mint-700 text-xs px-2 py-0.5 rounded-full">
+                          Free
+                        </span>
                       </div>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`w-4 h-4 ${i < 3 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < 3 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+                            }`}
+                          />
                         ))}
                       </div>
                     </div>
@@ -201,11 +295,38 @@ export default function DownloadPage() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Early Bird Perks */}
+      <section className="section bg-gradient-to-b from-amber-50 to-white">
+        <div className="container-custom">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 rounded-full px-4 py-2 mb-4">
+              <Sparkles className="w-4 h-4" />
+              <span className="font-semibold text-sm">Early Bird Perks</span>
+            </div>
+            <h2 className="text-3xl font-bold text-navy-800">Why Join the Waitlist?</h2>
+          </div>
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <ul className="space-y-4">
+                {earlyBirdPerks.map((perk, i) => (
+                  <li key={i} className="flex items-center gap-4">
+                    <div className="w-8 h-8 bg-mint-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-mint-600" />
+                    </div>
+                    <span className="text-gray-700 font-medium">{perk}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Preview */}
       <section className="section">
         <div className="container-custom">
           <h2 className="text-3xl font-bold text-navy-800 text-center mb-12">
-            Why Download the App?
+            What You'll Get
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature) => (
@@ -221,30 +342,8 @@ export default function DownloadPage() {
         </div>
       </section>
 
-      {/* Reviews */}
-      <section className="section bg-gray-50">
-        <div className="container-custom">
-          <h2 className="text-3xl font-bold text-navy-800 text-center mb-12">
-            What Users Say
-          </h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {reviews.map((review, i) => (
-              <div key={i} className="card">
-                <div className="flex mb-3">
-                  {[...Array(review.rating)].map((_, j) => (
-                    <Star key={j} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                  ))}
-                </div>
-                <p className="text-gray-700 mb-4">"{review.text}"</p>
-                <p className="font-semibold text-navy-800">{review.name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Requirements */}
-      <section className="section">
+      <section className="section bg-gray-50">
         <div className="container-custom">
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl font-bold text-navy-800 text-center mb-8">
@@ -297,31 +396,48 @@ export default function DownloadPage() {
       </section>
 
       {/* Final CTA */}
-      <section className="section bg-mint-500 text-white">
+      <section className="section bg-gradient-to-r from-navy-600 to-navy-800 text-white">
         <div className="container-custom text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Never Get Caught Out Again?</h2>
-          <p className="text-white/90 mb-8 max-w-xl mx-auto">
-            Join thousands of users who always know where the nearest toilet is.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="#"
-              className="btn btn-lg bg-white text-mint-600 hover:bg-gray-100"
-            >
-              <Download className="w-5 h-5" />
-              Download for iOS
-            </a>
-            <a
-              href="#"
-              className="btn btn-lg bg-navy-600 text-white hover:bg-navy-700"
-            >
-              <Download className="w-5 h-5" />
-              Download for Android
-            </a>
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
+            <Clock className="w-4 h-4 text-mint-400" />
+            <span className="text-sm font-semibold">Launching Very Soon</span>
           </div>
+          <h2 className="text-3xl font-bold mb-4">Don't Miss the Launch!</h2>
+          <p className="text-white/80 mb-8 max-w-xl mx-auto">
+            Join our waitlist and be among the first to download Where To Wee when it's available.
+          </p>
+          {status === 'success' ? (
+            <div className="inline-flex items-center gap-2 bg-mint-500 px-6 py-3 rounded-xl">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="font-semibold">You're on the waitlist!</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="max-w-md mx-auto">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="flex-1 px-6 py-4 rounded-xl bg-white text-navy-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-mint-400"
+                  disabled={status === 'loading'}
+                />
+                <button
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="px-8 py-4 bg-mint-500 hover:bg-mint-600 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {status === 'loading' ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    'Join Waitlist'
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </section>
     </>
   );
 }
-

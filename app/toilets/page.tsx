@@ -213,7 +213,7 @@ export default function ToiletsDirectoryPage() {
               Open Map
             </Link>
             <Link href="/download" className="btn bg-white text-navy-600 hover:bg-gray-100">
-              Download App
+              Join Waitlist
             </Link>
           </div>
         </div>

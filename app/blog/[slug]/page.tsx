@@ -276,11 +276,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               Find Toilets Near You
             </h2>
             <p className="text-gray-600 mb-6">
-              Download Where To Wee and never get caught short again.
+              Join the waitlist for our upcoming mobile app or try the web version now!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/download" className="btn btn-primary">
-                Download the App
+                Join Waitlist
               </Link>
               <Link href="/map" className="btn btn-secondary">
                 Try the Web Map

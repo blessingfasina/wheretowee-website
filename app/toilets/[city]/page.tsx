@@ -264,14 +264,14 @@ export default async function CityPage({ params }: Props) {
       <section className="section bg-navy-600 text-white">
         <div className="container-custom text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-4">
-            Download the App for {cityInfo.fullName}
+            Get the App for {cityInfo.fullName}
           </h2>
           <p className="text-gray-300 mb-6 max-w-xl mx-auto">
-            Get the full experience with our free mobile app. Find toilets faster, save favorites,
-            and get notifications when you're near a saved location.
+            Join the waitlist to be notified when our mobile app launches. Find toilets faster, save
+            favorites, and get notifications when you're near a saved location.
           </p>
           <Link href="/download" className="btn btn-mint btn-lg">
-            Download Free App
+            Join Waitlist
           </Link>
         </div>
       </section>

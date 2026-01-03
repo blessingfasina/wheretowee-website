@@ -454,20 +454,20 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
           </div>
         )}
 
-        {/* Download App CTA */}
+        {/* Join Waitlist CTA */}
         <div className="mt-6 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl p-5 text-white">
           <div className="flex items-start gap-3">
             <div className="text-3xl">📱</div>
             <div>
-              <h3 className="font-bold text-lg">Get the App</h3>
+              <h3 className="font-bold text-lg">App Coming Soon!</h3>
               <p className="text-emerald-100 text-sm mt-1">
-                Download for offline access, save favourites, and get notified when near toilets.
+                Join the waitlist for offline access, save favourites, and get notified when near toilets.
               </p>
               <a
                 href="/download"
                 className="inline-block mt-3 bg-white text-emerald-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-emerald-50 transition-colors"
               >
-                Download Free →
+                Join Waitlist →
               </a>
             </div>
           </div>

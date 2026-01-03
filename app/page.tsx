@@ -8,7 +8,7 @@ import {
   Clock,
   Smartphone,
   ChevronRight,
-  Download,
+  Bell,
   Search,
   CheckCircle2,
   Users,
@@ -70,8 +70,8 @@ const cities = [
 const howItWorks = [
   {
     step: 1,
-    title: 'Download the App',
-    description: 'Get Where To Wee free on iOS or Android, or use our web version.',
+    title: 'Join the Waitlist',
+    description: 'Sign up to be notified when Where To Wee launches on iOS and Android.',
   },
   {
     step: 2,
@@ -106,8 +106,8 @@ export default function HomePage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Link href="/download" className="btn btn-mint btn-lg">
-                  <Download className="w-5 h-5" />
-                  Download Free App
+                  <Bell className="w-5 h-5" />
+                  Join Waitlist
                 </Link>
                 <Link href="/map" className="btn btn-secondary btn-lg bg-transparent border-white text-white hover:bg-white/10">
                   <Search className="w-5 h-5" />
@@ -323,13 +323,13 @@ export default function HomePage() {
             Ready to Never Get Caught Out Again?
           </h2>
           <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
-            Download Where To Wee today and join thousands of users who never worry about finding a
-            toilet again.
+            Join the waitlist and be the first to download Where To Wee when it launches.
+            Use our web version now to find toilets near you!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/download" className="btn btn-mint btn-lg">
-              <Download className="w-5 h-5" />
-              Download for Free
+              <Bell className="w-5 h-5" />
+              Join Waitlist
             </Link>
             <Link href="/map" className="btn btn-lg bg-white/10 text-white hover:bg-white/20">
               <Search className="w-5 h-5" />

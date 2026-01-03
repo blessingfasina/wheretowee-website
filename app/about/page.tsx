@@ -185,7 +185,7 @@ export default function AboutPage() {
             facilities, and help others find what they need.
           </p>
           <Link href="/download" className="btn btn-mint btn-lg">
-            Download Free App
+            Join Waitlist
           </Link>
         </div>
       </section>
