@@ -14,6 +14,7 @@ import {
   Users,
   Shield,
 } from 'lucide-react';
+import DidYouKnow from '@/components/DidYouKnow';
 
 // Stats - update these with real numbers
 const stats = [
@@ -295,23 +296,7 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-            <div className="bg-gradient-to-br from-mint-400 to-mint-600 rounded-3xl p-8 text-white">
-              <h3 className="text-2xl font-bold mb-4">Did You Know?</h3>
-              <p className="text-white/90 mb-6">
-                The average person spends about 3 years of their life on the toilet. Make sure you
-                always find a clean one with Where To Wee!
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold">92%</div>
-                  <div className="text-sm text-white/80">User satisfaction</div>
-                </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 text-center">
-                  <div className="text-3xl font-bold">2 min</div>
-                  <div className="text-sm text-white/80">Avg. time to find</div>
-                </div>
-              </div>
-            </div>
+            <DidYouKnow />
           </div>
         </div>
       </section>
