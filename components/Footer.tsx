@@ -12,6 +12,7 @@ const footerLinks = {
     { name: 'About Us', href: '/about' },
     { name: 'Blog', href: '/blog' },
     { name: 'FAQ', href: '/faq' },
+    { name: 'Press Kit', href: '/press' },
     { name: 'Contact', href: '/contact' },
   ],
   legal: [
