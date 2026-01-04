@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Smartphone,
@@ -15,6 +15,8 @@ import {
   Clock,
   PartyPopper,
   Loader2,
+  Apple,
+  Download,
 } from 'lucide-react';
 
 const features = [
@@ -47,10 +49,37 @@ const earlyBirdPerks = [
   'Free forever - no premium features locked',
 ];
 
-export default function WaitlistPage() {
+interface SiteSettings {
+  launched: boolean;
+  appStoreUrl: string;
+  playStoreUrl: string;
+}
+
+export default function DownloadPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [settings, setSettings] = useState<SiteSettings>({
+    launched: false,
+    appStoreUrl: '',
+    playStoreUrl: '',
+  });
+  const [settingsLoading, setSettingsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        setSettings(data);
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      } finally {
+        setSettingsLoading(false);
+      }
+    }
+    fetchSettings();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +115,301 @@ export default function WaitlistPage() {
     }
   };
 
+  // Show loading state
+  if (settingsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-mint-500" />
+      </div>
+    );
+  }
+
+  // ============================================
+  // LAUNCHED MODE - Show Download Buttons
+  // ============================================
+  if (settings.launched) {
+    return (
+      <>
+        {/* Hero */}
+        <section className="gradient-hero text-white py-16 md:py-24">
+          <div className="container-custom">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="text-center lg:text-left">
+                {/* Live Badge */}
+                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-mint-500 to-emerald-500 rounded-full px-4 py-2 mb-6 shadow-lg">
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-sm font-bold">Now Available on iOS & Android</span>
+                </div>
+
+                <h1 className="text-4xl md:text-5xl font-bold mb-6">
+                  Download <span className="text-mint-400">Where To Wee</span>
+                </h1>
+                <p className="text-lg text-gray-300 mb-8 max-w-xl mx-auto lg:mx-0">
+                  Find public toilets near you instantly. 18,000+ locations across the UK with 
+                  filters for free, accessible, and baby changing facilities.
+                </p>
+
+                {/* Download Buttons */}
+                <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto lg:mx-0">
+                  {settings.appStoreUrl && (
+                    <a
+                      href={settings.appStoreUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-3 px-6 py-4 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
+                    >
+                      <Apple className="w-8 h-8" />
+                      <div className="text-left">
+                        <div className="text-xs text-gray-300">Download on the</div>
+                        <div className="text-lg font-bold">App Store</div>
+                      </div>
+                    </a>
+                  )}
+                  {settings.playStoreUrl && (
+                    <a
+                      href={settings.playStoreUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-3 px-6 py-4 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
+                    >
+                      <Download className="w-8 h-8" />
+                      <div className="text-left">
+                        <div className="text-xs text-gray-300">Get it on</div>
+                        <div className="text-lg font-bold">Google Play</div>
+                      </div>
+                    </a>
+                  )}
+                </div>
+
+                {/* Stats */}
+                <div className="mt-8 flex items-center gap-6 justify-center lg:justify-start">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-mint-400">18,000+</div>
+                    <div className="text-sm text-gray-400">Toilets</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-mint-400">Free</div>
+                    <div className="text-sm text-gray-400">Forever</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-mint-400">4.8★</div>
+                    <div className="text-sm text-gray-400">Rating</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Phone Mockup */}
+              <div className="hidden lg:flex justify-center">
+                <div className="relative">
+                  <div className="w-72 h-[580px] bg-gradient-to-b from-white to-gray-100 rounded-[3rem] border-8 border-gray-300 shadow-2xl flex flex-col overflow-hidden">
+                    {/* Status bar */}
+                    <div className="h-12 bg-navy-600 flex items-center justify-center">
+                      <span className="text-white text-sm font-semibold">🚻 Where To Wee</span>
+                    </div>
+                    {/* Content */}
+                    <div className="flex-1 bg-gray-100 p-4">
+                      <div className="bg-white rounded-xl p-3 mb-3 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-navy-800">Costa Coffee</span>
+                          <span className="text-sm text-mint-600">0.2 km</span>
+                        </div>
+                        <div className="flex gap-1 mb-2">
+                          <span className="bg-mint-100 text-mint-700 text-xs px-2 py-0.5 rounded-full">Free</span>
+                          <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">♿</span>
+                        </div>
+                        <div className="flex">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`w-4 h-4 ${i < 4 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-xl p-3 mb-3 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-navy-800">Public Toilet</span>
+                          <span className="text-sm text-mint-600">0.4 km</span>
+                        </div>
+                        <div className="flex gap-1 mb-2">
+                          <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">20p</span>
+                          <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">♿</span>
+                          <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">🍼</span>
+                        </div>
+                        <div className="flex">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`w-4 h-4 ${i < 5 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-xl p-3 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-navy-800">Sainsbury's</span>
+                          <span className="text-sm text-mint-600">0.5 km</span>
+                        </div>
+                        <div className="flex gap-1 mb-2">
+                          <span className="bg-mint-100 text-mint-700 text-xs px-2 py-0.5 rounded-full">Free</span>
+                        </div>
+                        <div className="flex">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`w-4 h-4 ${i < 3 ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Bottom nav */}
+                    <div className="h-16 bg-white border-t flex items-center justify-around px-4">
+                      <div className="text-center">
+                        <MapPin className="w-6 h-6 text-mint-500 mx-auto" />
+                        <span className="text-xs text-mint-600 font-semibold">Map</span>
+                      </div>
+                      <div className="text-center">
+                        <Star className="w-6 h-6 text-gray-400 mx-auto" />
+                        <span className="text-xs text-gray-500">Saved</span>
+                      </div>
+                      <div className="text-center">
+                        <Bell className="w-6 h-6 text-gray-400 mx-auto" />
+                        <span className="text-xs text-gray-500">Alerts</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Decorative */}
+                  <div className="absolute -top-8 -right-8 w-24 h-24 bg-mint-500/20 rounded-full blur-xl" />
+                  <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-mint-500/20 rounded-full blur-xl" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="section">
+          <div className="container-custom">
+            <h2 className="text-3xl font-bold text-navy-800 text-center mb-12">
+              What You Get
+            </h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {features.map((feature) => (
+                <div key={feature.title} className="card text-center">
+                  <div className="w-14 h-14 bg-mint-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <feature.icon className="w-7 h-7 text-mint-600" />
+                  </div>
+                  <h3 className="font-bold text-navy-800 mb-2">{feature.title}</h3>
+                  <p className="text-gray-600 text-sm">{feature.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Requirements */}
+        <section className="section bg-gray-50">
+          <div className="container-custom">
+            <div className="max-w-2xl mx-auto">
+              <h2 className="text-2xl font-bold text-navy-800 text-center mb-8">
+                System Requirements
+              </h2>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="card">
+                  <h3 className="font-bold text-navy-800 mb-4 flex items-center gap-2">
+                    <Smartphone className="w-5 h-5" />
+                    iOS
+                  </h3>
+                  <ul className="space-y-2 text-gray-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-mint-500" />
+                      iOS 13.0 or later
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-mint-500" />
+                      iPhone, iPad, iPod touch
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-mint-500" />
+                      ~50 MB storage
+                    </li>
+                  </ul>
+                  {settings.appStoreUrl && (
+                    <a
+                      href={settings.appStoreUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 btn btn-primary w-full text-center"
+                    >
+                      Download for iOS
+                    </a>
+                  )}
+                </div>
+                <div className="card">
+                  <h3 className="font-bold text-navy-800 mb-4 flex items-center gap-2">
+                    <Smartphone className="w-5 h-5" />
+                    Android
+                  </h3>
+                  <ul className="space-y-2 text-gray-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-mint-500" />
+                      Android 6.0 or later
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-mint-500" />
+                      All Android phones & tablets
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-mint-500" />
+                      ~40 MB storage
+                    </li>
+                  </ul>
+                  {settings.playStoreUrl && (
+                    <a
+                      href={settings.playStoreUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 btn btn-primary w-full text-center"
+                    >
+                      Download for Android
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="section bg-gradient-to-r from-navy-600 to-navy-800 text-white">
+          <div className="container-custom text-center">
+            <h2 className="text-3xl font-bold mb-4">Ready to Find Relief?</h2>
+            <p className="text-white/80 mb-8 max-w-xl mx-auto">
+              Download Where To Wee now and never panic about finding a toilet again.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {settings.appStoreUrl && (
+                <a
+                  href={settings.appStoreUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn bg-white text-navy-800 hover:bg-gray-100"
+                >
+                  🍎 Download for iPhone
+                </a>
+              )}
+              {settings.playStoreUrl && (
+                <a
+                  href={settings.playStoreUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-mint"
+                >
+                  🤖 Download for Android
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
+      </>
+    );
+  }
+
+  // ============================================
+  // WAITLIST MODE - Show Signup Form
+  // ============================================
   return (
     <>
       {/* Hero */}
