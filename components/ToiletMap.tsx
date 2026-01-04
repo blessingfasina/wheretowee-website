@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Accessibility, Baby, Coins, Star, ExternalLink, MapPin, Loader2 } from 'lucide-react';
+import { Navigation, Accessibility, Baby, Star, ExternalLink, MapPin, Loader2, LocateFixed } from 'lucide-react';
 
 // Custom toilet marker - Standard
 const ToiletIcon = L.divIcon({
@@ -70,20 +70,31 @@ function formatDistance(km: number): string {
 }
 
 // Component to handle location
-function LocationHandler({ onLocationFound }: { onLocationFound: (lat: number, lng: number) => void }) {
+function LocationHandler({ 
+  onLocationFound, 
+  onLocating,
+  refreshTrigger 
+}: { 
+  onLocationFound: (lat: number, lng: number) => void;
+  onLocating: (isLocating: boolean) => void;
+  refreshTrigger: number;
+}) {
   const map = useMap();
 
   useEffect(() => {
-    map.locate({ setView: true, maxZoom: 15 });
+    onLocating(true);
+    map.locate({ setView: true, maxZoom: 15, enableHighAccuracy: true });
 
     const handleLocationFound = (e: L.LocationEvent) => {
       onLocationFound(e.latlng.lat, e.latlng.lng);
+      onLocating(false);
     };
 
     const handleLocationError = () => {
       // Default to London if location fails
       map.setView([51.5074, -0.1278], 13);
       onLocationFound(51.5074, -0.1278);
+      onLocating(false);
     };
 
     map.on('locationfound', handleLocationFound);
@@ -93,7 +104,7 @@ function LocationHandler({ onLocationFound }: { onLocationFound: (lat: number, l
       map.off('locationfound', handleLocationFound);
       map.off('locationerror', handleLocationError);
     };
-  }, [map, onLocationFound]);
+  }, [map, onLocationFound, onLocating, refreshTrigger]);
 
   return null;
 }
@@ -120,11 +131,22 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [selectedToilet, setSelectedToilet] = useState<[number, number] | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [filters, setFilters] = useState({
     accessible: false,
     babyChanging: false,
     free: false,
   });
+
+  const handleRefreshLocation = useCallback(() => {
+    setLoading(true);
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  const handleLocating = useCallback((locating: boolean) => {
+    setIsLocating(locating);
+  }, []);
 
   const fetchToilets = useCallback(async (lat: number, lng: number) => {
     try {
@@ -218,6 +240,20 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
             <Baby className="w-4 h-4" />
             Baby Change
           </button>
+
+          {/* Refresh Location Button */}
+          <button
+            onClick={handleRefreshLocation}
+            disabled={isLocating}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ml-auto ${
+              isLocating
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md hover:shadow-lg'
+            }`}
+          >
+            <LocateFixed className={`w-4 h-4 ${isLocating ? 'animate-pulse' : ''}`} />
+            {isLocating ? 'Locating...' : 'My Location'}
+          </button>
         </div>
 
         {/* Map */}
@@ -233,7 +269,11 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <LocationHandler onLocationFound={handleLocationFound} />
+            <LocationHandler 
+              onLocationFound={handleLocationFound} 
+              onLocating={handleLocating}
+              refreshTrigger={refreshTrigger}
+            />
             <FlyToLocation position={selectedToilet} />
 
             {/* User location marker */}
@@ -278,23 +318,22 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                       <p className="text-xs text-gray-500 mb-2">{toilet.address}</p>
                     )}
                     <div className="flex flex-wrap gap-1 mb-2">
-                      {isFree(toilet) ? (
-                        <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                          Free
+                      {isAccessible(toilet) ? (
+                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                          ♿ Accessible
                         </span>
                       ) : (
-                        <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                          Paid
+                        <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-medium">
+                          Not Accessible
                         </span>
                       )}
-                      {isAccessible(toilet) && (
-                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                          ♿
-                        </span>
-                      )}
-                      {hasBabyChange(toilet) && (
+                      {hasBabyChange(toilet) ? (
                         <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                          🍼
+                          🍼 Baby Change
+                        </span>
+                      ) : (
+                        <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-medium">
+                          No Baby Change
                         </span>
                       )}
                     </div>
@@ -383,27 +422,26 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
 
                     {/* Features */}
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {isFree(toilet) ? (
-                        <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full font-medium">
-                          <Coins className="w-3 h-3" />
-                          Free
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-full font-medium">
-                          <Coins className="w-3 h-3" />
-                          Paid
-                        </span>
-                      )}
-                      {isAccessible(toilet) && (
+                      {isAccessible(toilet) ? (
                         <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
                           <Accessibility className="w-3 h-3" />
                           Accessible
                         </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
+                          <Accessibility className="w-3 h-3" />
+                          Not Accessible
+                        </span>
                       )}
-                      {hasBabyChange(toilet) && (
+                      {hasBabyChange(toilet) ? (
                         <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-medium">
                           <Baby className="w-3 h-3" />
                           Baby Change
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
+                          <Baby className="w-3 h-3" />
+                          No Baby Change
                         </span>
                       )}
                     </div>
