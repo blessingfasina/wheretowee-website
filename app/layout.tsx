@@ -3,6 +3,7 @@ import { Nunito } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import Analytics from '@/components/Analytics';
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -72,8 +73,8 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    // Add your verification codes here
-    // google: 'your-google-verification-code',
+    // Add your verification codes here after setting up Search Console
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
   },
 };
 
@@ -92,6 +93,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#1E3A5F" />
       </head>
       <body className="min-h-screen flex flex-col">
+        <Analytics />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
