@@ -44,8 +44,9 @@ export default function AboutPage() {
             </div>
             <div className="prose prose-lg text-gray-600 space-y-4">
               <p>
-                In September 2023, I arrived in the UK full of excitement for a new chapter. What I didn&apos;t expect 
-                was how something so basic – finding a toilet when you&apos;re out – would become a recurring challenge.
+                As a WordPress developer and entrepreneur living in the UK, I&apos;m always looking for problems 
+                worth solving. What I didn&apos;t expect was that one of the most frustrating everyday challenges 
+                would be something so basic – finding a toilet when you&apos;re out.
               </p>
               <p>
                 Picture this: You&apos;re out in the cold, miles from home, and you desperately need the loo. You look 
@@ -126,7 +127,7 @@ export default function AboutPage() {
             </div>
             <div className="prose prose-lg text-gray-600 mb-8">
               <p>
-                I&apos;m a builder by nature – I think in systems and data. So I did what any curious 
+                As a developer and entrepreneur, I think in systems and data. So I did what any curious 
                 problem-solver would do: I researched the market. What I found shocked me:
               </p>
             </div>

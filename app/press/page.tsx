@@ -101,8 +101,9 @@ export default function PressPage() {
               <div className="prose prose-lg text-gray-700 space-y-6">
                 <h3 className="text-xl font-bold text-navy-800 mt-0">The Spark</h3>
                 <p>
-                  In September 2023, I arrived in the UK full of excitement for a new chapter. What I didn&apos;t 
-                  expect was how something so basic – finding a toilet when you&apos;re out – would become a recurring challenge.
+                  As a WordPress developer and entrepreneur living in the UK, I&apos;m always on the lookout for 
+                  real problems worth solving. What I didn&apos;t expect was that one of the most frustrating 
+                  everyday challenges would be something so basic – finding a toilet when you&apos;re out.
                 </p>
                 <p>
                   Picture this: you&apos;re out in the cold, miles from home, and you desperately need the loo. You look 
@@ -140,8 +141,8 @@ export default function PressPage() {
 
                 <h3 className="text-xl font-bold text-navy-800">The Data That Changed Everything</h3>
                 <p>
-                  I&apos;m a builder by nature – I think in systems and data. So I did what any curious problem-solver 
-                  would do: I researched the market. What I found shocked me:
+                  As a developer and entrepreneur, I think in systems and data. So I did what any curious 
+                  problem-solver would do: I researched the market. What I found shocked me:
                 </p>
                 <ul>
                   <li><strong>&quot;Toilet near me&quot;</strong> – 500,000 average monthly searches in the UK</li>
