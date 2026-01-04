@@ -1,6 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Add contact to Brevo (formerly Sendinblue)
+async function addToBrevo(email: string) {
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
+  const BREVO_LIST_ID = process.env.BREVO_LIST_ID;
+
+  // Skip if Brevo is not configured
+  if (!BREVO_API_KEY || !BREVO_LIST_ID) {
+    console.log('Brevo not configured, skipping...');
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.brevo.com/v3/contacts', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        'api-key': BREVO_API_KEY,
+      },
+      body: JSON.stringify({
+        email: email,
+        listIds: [parseInt(BREVO_LIST_ID)],
+        updateEnabled: true, // Update if contact already exists
+        attributes: {
+          SOURCE: 'Website Waitlist',
+          SIGNUP_DATE: new Date().toISOString().split('T')[0],
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      // Don't throw error if contact already exists (code: duplicate_parameter)
+      if (errorData.code !== 'duplicate_parameter') {
+        console.error('Brevo API error:', errorData);
+      }
+    } else {
+      console.log('Contact added to Brevo successfully');
+    }
+  } catch (error) {
+    // Log but don't fail the waitlist submission
+    console.error('Brevo integration error:', error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json();
@@ -21,11 +66,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email already exists
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if email already exists in Supabase
     const { data: existing } = await supabase
       .from('waitlist')
       .select('id')
-      .eq('email', email.toLowerCase().trim())
+      .eq('email', normalizedEmail)
       .single();
 
     if (existing) {
@@ -35,11 +82,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert new email
+    // Insert new email into Supabase
     const { error } = await supabase
       .from('waitlist')
       .insert({
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         created_at: new Date().toISOString(),
         source: 'website',
       });
@@ -51,6 +98,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Add to Brevo for email marketing (non-blocking)
+    addToBrevo(normalizedEmail);
 
     return NextResponse.json(
       { message: "🎉 You're on the list! We'll email you as soon as the app launches." },
