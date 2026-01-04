@@ -72,8 +72,8 @@ const faqs = [
         a: `Use the "Baby Change" filter on our map to show only toilets with baby changing facilities. This is particularly useful for parents and carers when out with young children. Many supermarkets, shopping centres, and newer public toilets include baby changing, and we try to keep this information as up-to-date as possible.`,
       },
       {
-        q: 'Are baby changing facilities in men's toilets?',
-        a: `This varies by location. Traditionally, baby changing facilities were only in women's toilets, but this is changing. Many newer facilities have baby changing in both men's and women's toilets, or in a separate family/accessible toilet. We try to indicate where baby changing is located in our toilet details where this information is available.`,
+        q: "Are baby changing facilities in men's toilets?",
+        a: "This varies by location. Traditionally, baby changing facilities were only in women's toilets, but this is changing. Many newer facilities have baby changing in both men's and women's toilets, or in a separate family/accessible toilet. We try to indicate where baby changing is located in our toilet details where this information is available.",
       },
     ],
   },
@@ -102,7 +102,7 @@ const faqs = [
         a: `Yes! Once you've loaded toilets in an area, they're cached on your device and available offline. This is perfect for when you're in areas with poor signal or travelling abroad with limited data. Just make sure to open the app in your destination area while you have connectivity.`,
       },
       {
-        q: 'Can I add a toilet that's not on the map?',
+        q: "Can I add a toilet that's not on the map?",
         a: `Absolutely! We encourage users to submit toilets we've missed. Use the "Add a Loo" feature in the app to submit new toilets. Your submission will be reviewed by our team before being added to the database. Include as much information as possible about accessibility, baby changing, and fees to help other users.`,
       },
       {
