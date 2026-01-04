@@ -38,6 +38,36 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
+// Parse inline formatting (bold, links)
+function parseInlineFormatting(text: string): React.ReactNode[] {
+  // Split by both bold (**text**) and links ([text](url))
+  const parts = text.split(/(\*\*.*?\*\*|\[.*?\]\(.*?\))/g);
+  
+  return parts.map((part, i) => {
+    // Bold text
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="text-navy-700">{part.slice(2, -2)}</strong>;
+    }
+    // Links [text](url)
+    const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
+    if (linkMatch) {
+      const [, linkText, linkUrl] = linkMatch;
+      const isExternal = linkUrl.startsWith('http');
+      return (
+        <Link 
+          key={i} 
+          href={linkUrl}
+          className="text-mint-600 hover:text-mint-700 underline font-medium transition-colors"
+          {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        >
+          {linkText}
+        </Link>
+      );
+    }
+    return part;
+  });
+}
+
 // Render markdown-like content
 function renderContent(content: string) {
   return content.split('\n').map((line, index) => {
@@ -64,31 +94,18 @@ function renderContent(content: string) {
     
     // List items
     if (trimmed.startsWith('- ')) {
-      const content = trimmed.slice(2);
-      // Handle bold within list items
-      const parts = content.split(/(\*\*.*?\*\*)/g);
+      const listContent = trimmed.slice(2);
       return (
         <li key={index} className="ml-6 mb-1 text-gray-600 list-disc">
-          {parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              return <strong key={i} className="text-navy-700">{part.slice(2, -2)}</strong>;
-            }
-            return part;
-          })}
+          {parseInlineFormatting(listContent)}
         </li>
       );
     }
     if (/^\d+\.\s/.test(trimmed)) {
-      const content = trimmed.replace(/^\d+\.\s/, '');
-      const parts = content.split(/(\*\*.*?\*\*)/g);
+      const listContent = trimmed.replace(/^\d+\.\s/, '');
       return (
         <li key={index} className="ml-6 mb-1 text-gray-600 list-decimal">
-          {parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              return <strong key={i} className="text-navy-700">{part.slice(2, -2)}</strong>;
-            }
-            return part;
-          })}
+          {parseInlineFormatting(listContent)}
         </li>
       );
     }
@@ -99,15 +116,9 @@ function renderContent(content: string) {
     }
     
     // Regular paragraphs with inline formatting
-    const parts = trimmed.split(/(\*\*.*?\*\*)/g);
     return (
       <p key={index} className="mb-4 text-gray-600 leading-relaxed">
-        {parts.map((part, i) => {
-          if (part.startsWith('**') && part.endsWith('**')) {
-            return <strong key={i} className="text-navy-700">{part.slice(2, -2)}</strong>;
-          }
-          return part;
-        })}
+        {parseInlineFormatting(trimmed)}
       </p>
     );
   });
@@ -271,20 +282,36 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       {/* CTA */}
       <section className="section">
         <div className="container-custom">
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-4">
-              Find Toilets Near You
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Join the waitlist for our upcoming mobile app or try the web version now!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/download" className="btn btn-primary">
-                Join Waitlist
-              </Link>
-              <Link href="/map" className="btn btn-secondary">
-                Try the Web Map
-              </Link>
+          <div className="max-w-2xl mx-auto">
+            <div className="relative bg-gradient-to-br from-mint-500 via-mint-400 to-emerald-500 rounded-3xl p-8 md:p-12 text-white overflow-hidden">
+              {/* Background decorations */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+              <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-white/5 rounded-full" />
+              
+              <div className="relative text-center">
+                <span className="text-4xl mb-4 block">🚽</span>
+                <h2 className="text-2xl md:text-3xl font-bold mb-4">
+                  Find Toilets Near You
+                </h2>
+                <p className="text-white/90 mb-8 text-lg">
+                  Join the waitlist for our upcoming mobile app or try the web version now!
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link 
+                    href="/download" 
+                    className="inline-flex items-center justify-center px-8 py-3 bg-white text-mint-600 font-bold rounded-full hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl hover:scale-105"
+                  >
+                    🔔 Join Waitlist
+                  </Link>
+                  <Link 
+                    href="/map" 
+                    className="inline-flex items-center justify-center px-8 py-3 bg-white/20 text-white font-bold rounded-full hover:bg-white/30 transition-all border-2 border-white/50"
+                  >
+                    🗺️ Try the Web Map
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
