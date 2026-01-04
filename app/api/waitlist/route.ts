@@ -2,17 +2,46 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 // Add contact to Brevo (formerly Sendinblue)
-async function addToBrevo(email: string) {
+async function addToBrevo(email: string): Promise<{ success: boolean; message: string }> {
   const BREVO_API_KEY = process.env.BREVO_API_KEY;
   const BREVO_LIST_ID = process.env.BREVO_LIST_ID;
 
+  console.log('Brevo config check:', { 
+    hasApiKey: !!BREVO_API_KEY, 
+    apiKeyLength: BREVO_API_KEY?.length || 0,
+    listId: BREVO_LIST_ID 
+  });
+
   // Skip if Brevo is not configured
-  if (!BREVO_API_KEY || !BREVO_LIST_ID) {
-    console.log('Brevo not configured, skipping...');
-    return;
+  if (!BREVO_API_KEY) {
+    console.log('BREVO_API_KEY not configured');
+    return { success: false, message: 'BREVO_API_KEY not configured' };
+  }
+  
+  if (!BREVO_LIST_ID) {
+    console.log('BREVO_LIST_ID not configured');
+    return { success: false, message: 'BREVO_LIST_ID not configured' };
+  }
+
+  const listIdNumber = parseInt(BREVO_LIST_ID, 10);
+  if (isNaN(listIdNumber)) {
+    console.log('BREVO_LIST_ID is not a valid number:', BREVO_LIST_ID);
+    return { success: false, message: 'BREVO_LIST_ID is not a valid number' };
   }
 
   try {
+    const requestBody = {
+      email: email,
+      listIds: [listIdNumber],
+      updateEnabled: true,
+      attributes: {
+        SOURCE: 'Website Waitlist',
+        SIGNUP_DATE: new Date().toISOString().split('T')[0],
+      },
+    };
+
+    console.log('Sending to Brevo:', JSON.stringify(requestBody));
+
     const response = await fetch('https://api.brevo.com/v3/contacts', {
       method: 'POST',
       headers: {
@@ -20,29 +49,36 @@ async function addToBrevo(email: string) {
         'content-type': 'application/json',
         'api-key': BREVO_API_KEY,
       },
-      body: JSON.stringify({
-        email: email,
-        listIds: [parseInt(BREVO_LIST_ID)],
-        updateEnabled: true, // Update if contact already exists
-        attributes: {
-          SOURCE: 'Website Waitlist',
-          SIGNUP_DATE: new Date().toISOString().split('T')[0],
-        },
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    const responseText = await response.text();
+    console.log('Brevo response status:', response.status);
+    console.log('Brevo response body:', responseText);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      // Don't throw error if contact already exists (code: duplicate_parameter)
-      if (errorData.code !== 'duplicate_parameter') {
-        console.error('Brevo API error:', errorData);
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { message: responseText };
       }
-    } else {
-      console.log('Contact added to Brevo successfully');
+      
+      // Contact already exists is okay
+      if (errorData.code === 'duplicate_parameter') {
+        console.log('Contact already exists in Brevo');
+        return { success: true, message: 'Contact already exists' };
+      }
+      
+      console.error('Brevo API error:', errorData);
+      return { success: false, message: JSON.stringify(errorData) };
     }
+
+    console.log('Contact added to Brevo successfully');
+    return { success: true, message: 'Contact added successfully' };
   } catch (error) {
-    // Log but don't fail the waitlist submission
     console.error('Brevo integration error:', error);
+    return { success: false, message: String(error) };
   }
 }
 
@@ -99,11 +135,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Add to Brevo for email marketing (non-blocking)
-    addToBrevo(normalizedEmail);
+    // Add to Brevo for email marketing
+    const brevoResult = await addToBrevo(normalizedEmail);
+    console.log('Brevo result:', brevoResult);
 
     return NextResponse.json(
-      { message: "🎉 You're on the list! We'll email you as soon as the app launches." },
+      { 
+        message: "🎉 You're on the list! We'll email you as soon as the app launches.",
+        brevo: brevoResult // Include for debugging (can remove later)
+      },
       { status: 201 }
     );
   } catch (error) {
