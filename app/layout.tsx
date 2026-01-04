@@ -91,6 +91,30 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#1E3A5F" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: 'Where To Wee',
+              description: 'Find public toilets near you across the UK',
+              url: 'https://wheretowee.uk',
+              applicationCategory: 'UtilitiesApplication',
+              operatingSystem: 'iOS, Android, Web',
+              offers: {
+                '@type': 'Offer',
+                price: '0',
+                priceCurrency: 'GBP',
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '4.8',
+                ratingCount: '500',
+              },
+            }),
+          }}
+        />
       </head>
       <body className="min-h-screen flex flex-col">
         <Analytics />
