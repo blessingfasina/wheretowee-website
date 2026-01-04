@@ -96,19 +96,17 @@ export default function PressPage() {
             </div>
             
             <div className="bg-white p-8 rounded-2xl shadow-sm">
-              <p className="text-sm text-gray-500 mb-6 italic">Written in first person – feel free to quote directly or paraphrase.</p>
-              
               <div className="prose prose-lg text-gray-700 space-y-6">
                 <h3 className="text-xl font-bold text-navy-800 mt-0">The Spark</h3>
                 <p>
-                  As a WordPress developer and entrepreneur living in the UK, I&apos;m always on the lookout for 
-                  real problems worth solving. What I didn&apos;t expect was that one of the most frustrating 
-                  everyday challenges would be something so basic – finding a toilet when you&apos;re out.
+                  Where To Wee started with a frustration our founder knows all too well. As a WordPress developer 
+                  and entrepreneur living in the UK, finding a public toilet when you&apos;re out shouldn&apos;t be this hard 
+                  – but it is.
                 </p>
                 <p>
                   Picture this: you&apos;re out in the cold, miles from home, and you desperately need the loo. You look 
                   around. Nothing. You check your phone. The results are outdated, closed, or paid facilities you 
-                  can&apos;t access. In desperation, I found myself asking a corner shop owner if I could use their 
+                  can&apos;t access. Our founder found himself asking a corner shop owner if he could use their 
                   toilet. He said yes, thankfully, but the whole experience felt unnecessarily stressful.
                 </p>
                 <p className="font-semibold text-navy-700">
@@ -117,15 +115,15 @@ export default function PressPage() {
 
                 <h3 className="text-xl font-bold text-navy-800">&quot;Is It Just Me?&quot;</h3>
                 <p>
-                  I started asking people – friends, colleagues, people I&apos;d just met. <em>&quot;Do you find it hard 
+                  We started asking people – friends, colleagues, anyone who&apos;d listen. <em>&quot;Do you find it hard 
                   to find toilets when you&apos;re out?&quot;</em> Without exception, everyone had stories. The panic at 
                   a train station. The &quot;customers only&quot; rejection at a café. The 50p they didn&apos;t have at a paid facility.
                 </p>
                 <p>
-                  But I wanted data, not just anecdotes. So I went to where honest conversations happen: Reddit.
+                  But we wanted data, not just anecdotes. So we went to where honest conversations happen: Reddit.
                 </p>
                 <p>
-                  In subreddits like r/AskUK, r/london, and r/uktravels, I found thread after thread of people 
+                  In subreddits like r/AskUK, r/london, and r/uktravels, we found thread after thread of people 
                   sharing the exact same frustrations:
                 </p>
                 <ul>
@@ -141,8 +139,8 @@ export default function PressPage() {
 
                 <h3 className="text-xl font-bold text-navy-800">The Data That Changed Everything</h3>
                 <p>
-                  As a developer and entrepreneur, I think in systems and data. So I did what any curious 
-                  problem-solver would do: I researched the market. What I found shocked me:
+                  As developers, we think in systems and data. So we did what any curious problem-solver 
+                  would do: we researched the market. What we found was eye-opening:
                 </p>
                 <ul>
                   <li><strong>&quot;Toilet near me&quot;</strong> – 500,000 average monthly searches in the UK</li>

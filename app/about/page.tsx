@@ -44,14 +44,14 @@ export default function AboutPage() {
             </div>
             <div className="prose prose-lg text-gray-600 space-y-4">
               <p>
-                As a WordPress developer and entrepreneur living in the UK, I&apos;m always looking for problems 
-                worth solving. What I didn&apos;t expect was that one of the most frustrating everyday challenges 
-                would be something so basic – finding a toilet when you&apos;re out.
+                Where To Wee started with a frustration our founder knows all too well. As a WordPress developer 
+                and entrepreneur living in the UK, finding a public toilet when you&apos;re out shouldn&apos;t be this hard 
+                – but it is.
               </p>
               <p>
                 Picture this: You&apos;re out in the cold, miles from home, and you desperately need the loo. You look 
                 around. Nothing. You check your phone. The results are outdated, closed, or paid facilities you 
-                can&apos;t access. In desperation, I found myself asking a corner shop owner if I could use their 
+                can&apos;t access. Our founder found himself asking a corner shop owner if he could use their 
                 toilet. He said yes, thankfully, but the whole experience felt unnecessarily stressful.
               </p>
               <p className="text-xl font-semibold text-navy-700 italic">
@@ -74,12 +74,12 @@ export default function AboutPage() {
             </div>
             <div className="prose prose-lg text-gray-600 space-y-4">
               <p>
-                I started asking people – friends, colleagues, people I&apos;d just met. <em>&quot;Do you find it hard 
+                We started asking people – friends, colleagues, anyone who&apos;d listen. <em>&quot;Do you find it hard 
                 to find toilets when you&apos;re out?&quot;</em> Without exception, everyone had stories. The panic at 
                 a train station. The &quot;customers only&quot; rejection at a café. The 50p they didn&apos;t have at a paid facility.
               </p>
               <p>
-                But I wanted data, not just anecdotes. So I went to where honest conversations happen: <strong>Reddit</strong>.
+                But we wanted data, not just anecdotes. So we went to where honest conversations happen: <strong>Reddit</strong>.
               </p>
             </div>
             
@@ -127,8 +127,8 @@ export default function AboutPage() {
             </div>
             <div className="prose prose-lg text-gray-600 mb-8">
               <p>
-                As a developer and entrepreneur, I think in systems and data. So I did what any curious 
-                problem-solver would do: I researched the market. What I found shocked me:
+                As developers, we think in systems and data. So we did what any curious problem-solver 
+                would do: we researched the market. What we found was eye-opening:
               </p>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function AboutPage() {
             <div className="mt-8 text-center">
               <p className="text-2xl font-bold text-navy-800">
                 That&apos;s over <span className="text-mint-600">1.5 million searches every month</span> from people 
-                desperately trying to solve the same problem I&apos;d faced.
+                desperately trying to solve the same problem we&apos;d experienced.
               </p>
             </div>
           </div>
