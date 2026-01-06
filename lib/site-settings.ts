@@ -19,12 +19,20 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     const { data, error } = await supabase
       .from('site_settings')
       .select('*')
+      .eq('id', 1)
       .single();
 
-    if (error || !data) {
-      console.log('Using default settings');
+    if (error) {
+      console.log('Error or no settings found:', error.message);
       return defaultSettings;
     }
+
+    if (!data) {
+      console.log('No settings data found');
+      return defaultSettings;
+    }
+
+    console.log('Loaded settings:', data.launch_mode);
 
     return {
       launch_mode: data.launch_mode || 'waitlist',
