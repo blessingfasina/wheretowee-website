@@ -69,7 +69,13 @@ export default function DownloadPage() {
   useEffect(() => {
     async function fetchSettings() {
       try {
-        const res = await fetch('/api/settings');
+        // Add cache-busting to ensure fresh data
+        const res = await fetch('/api/settings', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
         const data = await res.json();
         setSettings(data);
       } catch (error) {
