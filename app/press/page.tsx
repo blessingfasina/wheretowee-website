@@ -312,27 +312,38 @@ export default function PressPage() {
             <div className="mb-12">
               <h3 className="text-xl font-bold text-navy-800 mb-4">Logos & Icons</h3>
               <div className="grid md:grid-cols-2 gap-6">
+                {/* App Icon - Light Background */}
                 <div className="bg-gray-50 p-8 rounded-xl text-center">
-                  <div className="w-24 h-24 bg-gradient-to-br from-navy-500 to-navy-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <span className="text-white text-3xl font-bold">WTW</span>
+                  <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
+                    <img 
+                      src="/icon-512.png" 
+                      alt="Where To Wee App Icon" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <p className="text-navy-800 font-medium mb-2">App Icon</p>
-                  <p className="text-sm text-gray-500 mb-4">PNG, 512x512</p>
+                  <p className="text-navy-800 font-medium mb-2">App Icon (Dark)</p>
+                  <p className="text-sm text-gray-500 mb-4">PNG, 512x512 • For light backgrounds</p>
                   <a href="/icon-512.png" download className="inline-flex items-center gap-2 text-mint-600 hover:text-mint-700 font-medium">
                     <Download className="w-4 h-4" />
                     Download
                   </a>
                 </div>
                 
+                {/* App Icon - Dark Background Preview */}
                 <div className="bg-navy-600 p-8 rounded-xl text-center">
-                  <div className="text-white mb-4">
-                    <span className="text-4xl font-bold">Where To Wee</span>
+                  <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg bg-white/10 flex items-center justify-center">
+                    <img 
+                      src="/icon-512.png" 
+                      alt="Where To Wee App Icon on Dark Background" 
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <p className="text-white/80 font-medium mb-2">Logo (Light)</p>
-                  <p className="text-sm text-white/60 mb-4">For dark backgrounds</p>
-                  <span className="inline-flex items-center gap-2 text-mint-400 font-medium">
-                    Coming Soon
-                  </span>
+                  <p className="text-white/90 font-medium mb-2">App Icon Preview</p>
+                  <p className="text-sm text-white/60 mb-4">How it looks on dark backgrounds</p>
+                  <a href="/icon-512.png" download className="inline-flex items-center gap-2 text-mint-400 hover:text-mint-300 font-medium">
+                    <Download className="w-4 h-4" />
+                    Download
+                  </a>
                 </div>
               </div>
             </div>
