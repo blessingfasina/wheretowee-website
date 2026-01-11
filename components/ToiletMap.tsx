@@ -557,7 +557,7 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
               type="text"
               value={searchQuery}
               onChange={(e) => handleSearchInput(e.target.value)}
-              placeholder="Search location (e.g., Manchester, Birmingham)"
+              placeholder="Search location"
               className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-gray-800"
             />
             {isSearching && (

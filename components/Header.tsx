@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Menu, X, MapPin, Bell, Info, Map, BookOpen } from 'lucide-react';
+import { Menu, X, MapPin, Bell, Info, Map, BookOpen, Mail } from 'lucide-react';
 
 const navigation = [
   { name: 'Find Toilets', href: '/map', icon: Map },
   { name: 'Cities', href: '/toilets', icon: MapPin },
   { name: 'Blog', href: '/blog', icon: BookOpen },
   { name: 'About', href: '/about', icon: Info },
+  { name: 'Contact', href: '/contact', icon: Mail },
 ];
 
 export default function Header() {
