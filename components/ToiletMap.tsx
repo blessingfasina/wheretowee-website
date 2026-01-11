@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Accessibility, Baby, Coins, Star, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X } from 'lucide-react';
+import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X } from 'lucide-react';
 
 // Custom toilet marker - Standard
 const ToiletIcon = L.divIcon({
@@ -649,16 +649,6 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                         </span>
                       )}
                     </div>
-
-                    {/* Rating */}
-                    {toilet.average_rating && toilet.average_rating > 0 && (
-                      <div className="flex items-center gap-1 mt-2 text-sm">
-                        <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                        <span className="font-medium text-gray-700">
-                          {toilet.average_rating.toFixed(1)}
-                        </span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Distance */}
