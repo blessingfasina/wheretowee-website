@@ -350,45 +350,6 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Map Container */}
       <div className="relative">
-        {/* Search Bar */}
-        <div className="mb-4" ref={searchContainerRef}>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => handleSearchInput(e.target.value)}
-              placeholder="Search for a location (e.g., Manchester, Birmingham)"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-gray-800"
-            />
-            {isSearching && (
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
-              </div>
-            )}
-          </div>
-          
-          {/* Search Results Dropdown */}
-          {showSearchResults && searchResults.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-              {searchResults.map((result, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSelectSearchResult(result)}
-                  className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors border-b border-gray-100 last:border-b-0"
-                >
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-gray-700 line-clamp-2">{result.display_name}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Filters and Actions */}
         <div className="mb-4 flex flex-wrap gap-2">
           <button
@@ -585,6 +546,45 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
           <MapPin className="w-5 h-5 text-emerald-500" />
           Nearest Toilets
         </h2>
+
+        {/* Search Bar - Positioned here for mobile visibility */}
+        <div className="mb-4 relative" ref={searchContainerRef}>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              placeholder="Search location (e.g., Manchester, Birmingham)"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-gray-800"
+            />
+            {isSearching && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+              </div>
+            )}
+          </div>
+          
+          {/* Search Results Dropdown */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+              {searchResults.map((result, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSelectSearchResult(result)}
+                  className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors border-b border-gray-100 last:border-b-0"
+                >
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-700 line-clamp-2">{result.display_name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
