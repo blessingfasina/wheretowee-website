@@ -2,6 +2,7 @@
 -- SEO-OPTIMIZED BLOG POSTS FOR WHERE TO WEE
 -- Run this SQL in Supabase SQL Editor
 -- Created: January 2026
+-- Uses ON CONFLICT to skip existing posts
 -- ============================================
 
 -- Blog Post 1: RADAR Key Complete Guide
@@ -136,7 +137,8 @@ Unfortunately, yes. Always buy from reputable sources to ensure your key works p
   false,
   NOW() - INTERVAL '2 days',
   NOW()
-);
+)
+ON CONFLICT (slug) DO NOTHING;
 
 -- Blog Post 2: Changing Places Toilets Guide
 INSERT INTO blog_posts (
@@ -291,7 +293,8 @@ Want a Changing Places toilet at your local venue? Here''s how to make it happen
   false,
   NOW() - INTERVAL '1 day',
   NOW()
-);
+)
+ON CONFLICT (slug) DO NOTHING;
 
 -- Blog Post 3: UK Public Toilet Closures 2026
 INSERT INTO blog_posts (
@@ -453,7 +456,8 @@ The key is continued pressure from the public and recognition that toilet provis
   true,
   NOW(),
   NOW()
-);
+)
+ON CONFLICT (slug) DO NOTHING;
 
 -- Blog Post 4: IBS Toilet Tips
 INSERT INTO blog_posts (
@@ -668,7 +672,8 @@ The condition can be managed with:
   true,
   NOW() - INTERVAL '3 days',
   NOW()
-);
+)
+ON CONFLICT (slug) DO NOTHING;
 
 -- Blog Post 5: UK Train Station Toilets Guide
 INSERT INTO blog_posts (
@@ -878,7 +883,8 @@ The situation is gradually improving, but there''s still work to do.
   false,
   NOW() - INTERVAL '4 days',
   NOW()
-);
+)
+ON CONFLICT (slug) DO NOTHING;
 
 -- Blog Post 6: Free Public Toilets London Guide
 INSERT INTO blog_posts (
@@ -1116,7 +1122,8 @@ All the free options above should have accessible toilets, but for guaranteed ac
   false,
   NOW() - INTERVAL '5 days',
   NOW()
-);
+)
+ON CONFLICT (slug) DO NOTHING;
 
 -- ============================================
 -- VERIFY INSERTION

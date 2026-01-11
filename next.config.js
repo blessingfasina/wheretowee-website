@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable gzip compression
+  compress: true,
+  
+  // Optimize images
   images: {
     remotePatterns: [
       {
@@ -7,6 +11,27 @@ const nextConfig = {
         hostname: '**.supabase.co',
       },
     ],
+    // Use modern image formats
+    formats: ['image/avif', 'image/webp'],
+    // Minimize image sizes
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+  },
+  
+  // Reduce JavaScript bundle size
+  swcMinify: true,
+  
+  // Optimize production builds
+  compiler: {
+    // Remove console.log in production
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  
+  // Optimize package imports (reduces bundle size)
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
+    },
   },
   async redirects() {
     return [
