@@ -18,6 +18,7 @@ import {
   Apple,
   Download,
 } from 'lucide-react';
+import { trackWaitlistSignup, trackAppDownload } from '@/lib/analytics';
 
 const features = [
   {
@@ -111,6 +112,8 @@ export default function DownloadPage() {
         setStatus('success');
         setMessage(data.message || "You're on the list! We'll notify you when the app launches.");
         setEmail('');
+        // Track conversion in GA4
+        trackWaitlistSignup();
       } else {
         setStatus('error');
         setMessage(data.error || 'Something went wrong. Please try again.');
@@ -162,6 +165,7 @@ export default function DownloadPage() {
                       href={settings.appStoreUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackAppDownload('app_store')}
                       className="flex items-center justify-center gap-3 px-6 py-4 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
                     >
                       <Apple className="w-8 h-8" />
@@ -176,6 +180,7 @@ export default function DownloadPage() {
                       href={settings.playStoreUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackAppDownload('play_store')}
                       className="flex items-center justify-center gap-3 px-6 py-4 bg-black hover:bg-gray-900 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
                     >
                       <Download className="w-8 h-8" />

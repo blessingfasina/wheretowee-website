@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-le
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X } from 'lucide-react';
+import { trackGetDirections, trackMapSearch, trackInaccuracyReport } from '@/lib/analytics';
 
 // Custom toilet marker - Standard
 const ToiletIcon = L.divIcon({
@@ -511,6 +512,7 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                       href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackGetDirections(toilet.name, toilet.id)}
                       className="inline-flex items-center gap-1 text-emerald-600 text-xs font-semibold hover:text-emerald-700"
                     >
                       <Navigation className="w-3 h-3" />
@@ -674,7 +676,10 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                   href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    trackGetDirections(toilet.name, toilet.id);
+                  }}
                   className="mt-3 inline-flex items-center gap-1.5 text-emerald-600 text-sm font-semibold hover:text-emerald-700"
                 >
                   <Navigation className="w-4 h-4" />
