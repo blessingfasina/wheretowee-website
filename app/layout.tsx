@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     locale: 'en_GB',
     url: 'https://wheretowee.uk',
     siteName: 'Where To Wee',
-    title: 'Where To Wee - Find Public Toilets Near You',
+    title: 'Find Toilets Near Me | Public Toilets UK Map',
     description:
       'Find clean, accessible public toilets near you across the UK. 18,000+ toilets with ratings and accessibility info.',
     images: [
@@ -55,15 +55,16 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Where To Wee - UK Toilet Finder App',
+        alt: 'Where To Wee app showing interactive map to find public toilets near me across the UK with accessibility filters',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Where To Wee - Find Public Toilets Near You',
+    title: 'Find Toilets Near Me | Free UK Toilet Finder',
     description: 'Find clean, accessible public toilets across the UK. Free app with 18,000+ locations.',
     images: ['/og-image.png'],
+    creator: '@wheretowee',
   },
   robots: {
     index: true,
