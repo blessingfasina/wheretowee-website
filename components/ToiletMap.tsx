@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Accessibility, Baby, Coins, Star, ExternalLink, MapPin, Loader2, LocateFixed } from 'lucide-react';
+import { Navigation, Accessibility, Baby, Coins, Star, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X } from 'lucide-react';
 
 // Custom toilet marker - Standard
 const ToiletIcon = L.divIcon({
@@ -126,6 +126,28 @@ interface ToiletMapProps {
   onToiletsLoaded?: (toilets: Toilet[]) => void;
 }
 
+// Search result interface
+interface SearchResult {
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+// Component to fly to search location
+function FlyToSearch({ position, onComplete }: { position: [number, number] | null; onComplete: () => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (position) {
+      map.flyTo(position, 15, { duration: 1 });
+      // Call onComplete after animation
+      setTimeout(onComplete, 1000);
+    }
+  }, [map, position, onComplete]);
+
+  return null;
+}
+
 export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const [toilets, setToilets] = useState<Toilet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,6 +161,23 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     free: false,
   });
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchLocation, setSearchLocation] = useState<[number, number] | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Report modal state
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportToiletId, setReportToiletId] = useState<number | null>(null);
+  const [reportType, setReportType] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+
   const handleRefreshLocation = useCallback(() => {
     setLoading(true);
     setRefreshTrigger(prev => prev + 1);
@@ -147,6 +186,112 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const handleLocating = useCallback((locating: boolean) => {
     setIsLocating(locating);
   }, []);
+
+  // Search for locations using OpenStreetMap Nominatim
+  const searchLocation_fn = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=gb&limit=5`,
+        { headers: { 'Accept-Language': 'en-GB' } }
+      );
+      const data = await response.json();
+      setSearchResults(data);
+      setShowSearchResults(true);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Debounced search
+  const handleSearchInput = useCallback((value: string) => {
+    setSearchQuery(value);
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      searchLocation_fn(value);
+    }, 300);
+  }, [searchLocation_fn]);
+
+  // Handle search result selection
+  const handleSelectSearchResult = useCallback((result: SearchResult) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    setSearchLocation([lat, lng]);
+    setSearchQuery(result.display_name.split(',')[0]);
+    setShowSearchResults(false);
+    setLoading(true);
+  }, []);
+
+  // Callback when search fly completes
+  const handleSearchComplete = useCallback(() => {
+    if (searchLocation) {
+      fetchToilets(searchLocation[0], searchLocation[1]);
+      setSearchLocation(null);
+    }
+  }, [searchLocation]);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle report submission
+  const handleSubmitReport = async () => {
+    if (!reportType || !reportDetails.trim()) return;
+
+    setIsSubmittingReport(true);
+    try {
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toilet_id: reportToiletId,
+          type: reportType,
+          details: reportDetails,
+        }),
+      });
+
+      if (response.ok) {
+        setReportSubmitted(true);
+        setTimeout(() => {
+          setShowReportModal(false);
+          setReportSubmitted(false);
+          setReportType('');
+          setReportDetails('');
+          setReportToiletId(null);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Report submission error:', error);
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
+
+  // Open report modal
+  const openReportModal = (toiletId?: number) => {
+    setReportToiletId(toiletId || null);
+    setShowReportModal(true);
+  };
 
   const fetchToilets = useCallback(async (lat: number, lng: number) => {
     try {
@@ -205,7 +350,46 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Map Container */}
       <div className="relative">
-        {/* Filters */}
+        {/* Search Bar */}
+        <div className="mb-4" ref={searchContainerRef}>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              placeholder="Search for a location (e.g., Manchester, Birmingham)"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-gray-800"
+            />
+            {isSearching && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+              </div>
+            )}
+          </div>
+          
+          {/* Search Results Dropdown */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+              {searchResults.map((result, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSelectSearchResult(result)}
+                  className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors border-b border-gray-100 last:border-b-0"
+                >
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-gray-700 line-clamp-2">{result.display_name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Filters and Actions */}
         <div className="mb-4 flex flex-wrap gap-2">
           <button
             onClick={() => setFilters((f) => ({ ...f, free: !f.free }))}
@@ -256,6 +440,25 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
           </button>
         </div>
 
+        {/* Action Buttons */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          <a
+            href="/submit"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-navy-600 text-white hover:bg-navy-700 shadow-md hover:shadow-lg transition-all"
+            style={{ backgroundColor: '#1E3A5F' }}
+          >
+            <Plus className="w-4 h-4" />
+            Add a Toilet
+          </a>
+          <button
+            onClick={() => openReportModal()}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-md hover:shadow-lg transition-all"
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Report Inaccuracy
+          </button>
+        </div>
+
         {/* Map */}
         <div className="rounded-2xl overflow-hidden shadow-lg border-2 border-gray-100">
           <MapContainer
@@ -275,6 +478,7 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
               refreshTrigger={refreshTrigger}
             />
             <FlyToLocation position={selectedToilet} />
+            <FlyToSearch position={searchLocation} onComplete={handleSearchComplete} />
 
             {/* User location marker */}
             {userLocation && (
@@ -511,6 +715,109 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
           </div>
         </div>
       </div>
+
+      {/* Report Inaccuracy Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                Report Inaccuracy
+              </h3>
+              <button
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportType('');
+                  setReportDetails('');
+                  setReportToiletId(null);
+                }}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5">
+              {reportSubmitted ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-2">Thank You!</h4>
+                  <p className="text-gray-600">Your report has been submitted. We&apos;ll review it shortly.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Help us keep our data accurate. Let us know what&apos;s wrong and we&apos;ll fix it.
+                  </p>
+
+                  {/* Report Type */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      What&apos;s the issue? *
+                    </label>
+                    <select
+                      value={reportType}
+                      onChange={(e) => setReportType(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-400 outline-none transition-colors"
+                    >
+                      <option value="">Select an issue type</option>
+                      <option value="wrong_location">Wrong location</option>
+                      <option value="permanently_closed">Toilet permanently closed</option>
+                      <option value="temporarily_closed">Toilet temporarily closed</option>
+                      <option value="wrong_accessibility">Incorrect accessibility info</option>
+                      <option value="wrong_baby_change">Incorrect baby change info</option>
+                      <option value="wrong_fee">Incorrect fee information</option>
+                      <option value="duplicate">Duplicate listing</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Report Details */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Details *
+                    </label>
+                    <textarea
+                      value={reportDetails}
+                      onChange={(e) => setReportDetails(e.target.value)}
+                      placeholder="Please describe the issue in detail..."
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-400 outline-none transition-colors resize-none"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitReport}
+                    disabled={!reportType || !reportDetails.trim() || isSubmittingReport}
+                    className={`w-full py-3 rounded-xl font-semibold transition-all ${
+                      !reportType || !reportDetails.trim() || isSubmittingReport
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    {isSubmittingReport ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Submitting...
+                      </span>
+                    ) : (
+                      'Submit Report'
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
