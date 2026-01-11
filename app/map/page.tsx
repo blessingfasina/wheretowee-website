@@ -2,12 +2,35 @@ import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
 
 export const metadata: Metadata = {
-  title: 'Find Public Toilets Near Me - Interactive Map',
+  title: 'Toilets Near Me - Find Public Toilets Now | Free Map',
   description:
-    'Use our interactive map to find public toilets near your current location. Filter by accessibility, baby changing, and more.',
+    'Find toilets near me instantly! Interactive map showing 18,000+ public toilets across the UK. Filter by wheelchair accessible, baby changing, and free toilets. Updated 2026.',
+  keywords: [
+    'toilets near me',
+    'toilet near me',
+    'public toilets near me',
+    'public toilets close to me',
+    'nearest toilet',
+    'find toilet',
+    'toilet map',
+    'public loo near me',
+    'restroom near me',
+    'accessible toilets near me',
+    'baby changing near me',
+  ],
   openGraph: {
-    title: 'Find Public Toilets Near Me - Where To Wee',
-    description: 'Interactive map to find public toilets near you across the UK.',
+    title: 'Find Toilets Near Me - Interactive Map | Where To Wee',
+    description: 'Find the nearest public toilets instantly. 18,000+ toilets across the UK with accessibility info, baby changing, and user ratings.',
+    type: 'website',
+    url: 'https://wheretowee.uk/map',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Find Toilets Near Me - Interactive Map',
+    description: 'Find the nearest public toilets instantly with our free interactive map.',
+  },
+  alternates: {
+    canonical: 'https://wheretowee.uk/map',
   },
 };
 

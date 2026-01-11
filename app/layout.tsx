@@ -14,21 +14,25 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   metadataBase: new URL('https://wheretowee.uk'),
   title: {
-    default: 'Where To Wee - Find Public Toilets Near You | UK Toilet Finder',
-    template: '%s | Where To Wee',
+    default: 'Find Toilets Near Me | Public Toilets UK | Where To Wee',
+    template: '%s | Where To Wee - UK Toilet Finder',
   },
   description:
-    'Find clean, accessible public toilets near you across the UK. Free app with 18,000+ toilets, wheelchair accessibility info, baby changing facilities, and user ratings.',
+    'Find public toilets near me instantly! 18,000+ toilets across the UK with wheelchair accessibility, baby changing facilities, and free options. The UK\'s #1 toilet finder app.',
   keywords: [
-    'public toilets',
-    'toilet finder',
-    'nearest toilet',
-    'accessible toilets',
-    'wheelchair toilet',
-    'baby changing',
-    'UK toilets',
-    'public loo',
-    'restroom finder',
+    'toilets near me',
+    'toilet near me',
+    'public toilets near me',
+    'public toilets close to me',
+    'nearest public toilets near me',
+    'public toilet near me',
+    'accessible toilets UK',
+    'baby changing facilities near me',
+    'free public toilets',
+    'wheelchair accessible toilets',
+    'find toilet',
+    'toilet finder UK',
+    'public loo near me',
   ],
   authors: [{ name: 'Where To Wee' }],
   creator: 'Where To Wee',
@@ -91,17 +95,49 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#1E3A5F" />
+        {/* Organization Schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'Where To Wee',
+              url: 'https://wheretowee.uk',
+              logo: 'https://wheretowee.uk/icon-512.png',
+              description: 'The UK\'s leading public toilet finder app helping millions find clean, accessible toilets near them.',
+              foundingDate: '2024',
+              founders: [{
+                '@type': 'Person',
+                name: 'Where To Wee Team'
+              }],
+              contactPoint: {
+                '@type': 'ContactPoint',
+                email: 'hello@wheretowee.uk',
+                contactType: 'customer service',
+                availableLanguage: 'English'
+              },
+              sameAs: [
+                'https://twitter.com/wheretowee',
+                'https://www.linkedin.com/company/wheretowee',
+                'https://www.instagram.com/wheretowee'
+              ]
+            }),
+          }}
+        />
+        {/* WebApplication Schema */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'WebApplication',
-              name: 'Where To Wee',
-              description: 'Find public toilets near you across the UK',
+              name: 'Where To Wee - Toilet Finder',
+              description: 'Find public toilets near me instantly. 18,000+ toilets across the UK with wheelchair accessibility, baby changing facilities, and ratings.',
               url: 'https://wheretowee.uk',
               applicationCategory: 'UtilitiesApplication',
               operatingSystem: 'iOS, Android, Web',
+              browserRequirements: 'Requires JavaScript',
               offers: {
                 '@type': 'Offer',
                 price: '0',
@@ -111,7 +147,37 @@ export default function RootLayout({
                 '@type': 'AggregateRating',
                 ratingValue: '4.8',
                 ratingCount: '500',
+                bestRating: '5',
+                worstRating: '1'
               },
+              featureList: [
+                'Find toilets near me',
+                'Wheelchair accessible toilet filter',
+                'Baby changing facilities filter',
+                'Free toilet filter',
+                'User ratings and reviews',
+                'Offline access'
+              ]
+            }),
+          }}
+        />
+        {/* WebSite Schema for Sitelinks Search */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'Where To Wee',
+              url: 'https://wheretowee.uk',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: {
+                  '@type': 'EntryPoint',
+                  urlTemplate: 'https://wheretowee.uk/toilets/{search_term_string}'
+                },
+                'query-input': 'required name=search_term_string'
+              }
             }),
           }}
         />

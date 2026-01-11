@@ -51,12 +51,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
+  const cityName = cityInfo.fullName;
+
   return {
-    title: `Public Toilets in ${cityInfo.fullName} - Find Nearest Loo`,
-    description: `Find public toilets in ${cityInfo.fullName}. View locations, accessibility info, baby changing facilities, ratings, and directions. Free toilet finder for ${cityInfo.fullName}.`,
+    title: `Toilets Near Me in ${cityName} | Free Public Toilets ${cityName}`,
+    description: `Find public toilets near me in ${cityName}. 50+ locations with wheelchair accessible toilets, baby changing facilities, and free options. Updated 2026 toilet map for ${cityName}.`,
+    keywords: [
+      `toilets near me ${cityName}`,
+      `public toilets ${cityName}`,
+      `${cityName} public toilets`,
+      `free toilets ${cityName}`,
+      `accessible toilets ${cityName}`,
+      `baby changing ${cityName}`,
+      `toilet finder ${cityName}`,
+      `nearest toilet ${cityName}`,
+    ],
     openGraph: {
-      title: `Public Toilets in ${cityInfo.fullName} - Where To Wee`,
-      description: `Find clean, accessible public toilets in ${cityInfo.fullName}. View ratings, accessibility info, and get directions.`,
+      title: `Find Toilets Near Me in ${cityName} | Where To Wee`,
+      description: `Find clean, accessible public toilets in ${cityName}. View ratings, accessibility info, and get directions to the nearest loo.`,
+      url: `https://wheretowee.uk/toilets/${city}`,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title: `Public Toilets in ${cityName}`,
+      description: `Find the nearest public toilets in ${cityName} with accessibility info and ratings.`,
+    },
+    alternates: {
+      canonical: `https://wheretowee.uk/toilets/${city}`,
     },
   };
 }
@@ -275,6 +297,81 @@ export default async function CityPage({ params }: Props) {
           </Link>
         </div>
       </section>
+
+      {/* Schema.org LocalBusiness + ItemList for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            name: `Public Toilets in ${cityInfo.fullName}`,
+            description: `List of public toilet facilities in ${cityInfo.fullName}, UK`,
+            numberOfItems: toilets.length,
+            itemListElement: toilets.slice(0, 10).map((toilet, index) => ({
+              '@type': 'ListItem',
+              position: index + 1,
+              item: {
+                '@type': 'PublicToilet',
+                name: toilet.name,
+                address: {
+                  '@type': 'PostalAddress',
+                  addressLocality: cityInfo.fullName,
+                  addressCountry: 'GB',
+                },
+                geo: {
+                  '@type': 'GeoCoordinates',
+                  latitude: toilet.latitude,
+                  longitude: toilet.longitude,
+                },
+                isAccessibleForFree: toilet.fee === 'no',
+                amenityFeature: [
+                  ...(toilet.wheelchair === 'yes' ? [{ '@type': 'LocationFeatureSpecification', name: 'Wheelchair Accessible', value: true }] : []),
+                  ...(toilet.baby_changing === 'yes' ? [{ '@type': 'LocationFeatureSpecification', name: 'Baby Changing Facility', value: true }] : []),
+                ],
+                aggregateRating: toilet.average_rating ? {
+                  '@type': 'AggregateRating',
+                  ratingValue: toilet.average_rating.toFixed(1),
+                  ratingCount: toilet.rating_count,
+                  bestRating: 5,
+                  worstRating: 1,
+                } : undefined,
+              },
+            })),
+          }),
+        }}
+      />
+
+      {/* BreadcrumbList Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              {
+                '@type': 'ListItem',
+                position: 1,
+                name: 'Home',
+                item: 'https://wheretowee.uk',
+              },
+              {
+                '@type': 'ListItem',
+                position: 2,
+                name: 'Cities',
+                item: 'https://wheretowee.uk/toilets',
+              },
+              {
+                '@type': 'ListItem',
+                position: 3,
+                name: cityInfo.fullName,
+                item: `https://wheretowee.uk/toilets/${city}`,
+              },
+            ],
+          }),
+        }}
+      />
     </>
   );
 }
