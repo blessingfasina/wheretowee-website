@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X } from 'lucide-react';
+import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X, Target, Crosshair } from 'lucide-react';
 import { trackGetDirections, trackMapSearch, trackInaccuracyReport } from '@/lib/analytics';
 
 // Custom toilet marker - Standard
@@ -74,20 +74,33 @@ function formatDistance(km: number): string {
 function LocationHandler({ 
   onLocationFound, 
   onLocating,
-  refreshTrigger 
+  refreshTrigger,
+  highAccuracy,
+  onAccuracyDetected,
 }: { 
   onLocationFound: (lat: number, lng: number) => void;
   onLocating: (isLocating: boolean) => void;
   refreshTrigger: number;
+  highAccuracy: boolean;
+  onAccuracyDetected: (accuracy: number | null) => void;
 }) {
   const map = useMap();
 
   useEffect(() => {
     onLocating(true);
-    map.locate({ setView: true, maxZoom: 15, enableHighAccuracy: true });
+    onAccuracyDetected(null);
+    
+    map.locate({ 
+      setView: true, 
+      maxZoom: 15, 
+      enableHighAccuracy: highAccuracy,
+      timeout: highAccuracy ? 15000 : 5000, // Longer timeout for high accuracy
+      maximumAge: highAccuracy ? 0 : 60000, // No cache for high accuracy
+    });
 
     const handleLocationFound = (e: L.LocationEvent) => {
       onLocationFound(e.latlng.lat, e.latlng.lng);
+      onAccuracyDetected(e.accuracy); // Accuracy in meters
       onLocating(false);
     };
 
@@ -95,6 +108,7 @@ function LocationHandler({
       // Default to London if location fails
       map.setView([51.5074, -0.1278], 13);
       onLocationFound(51.5074, -0.1278);
+      onAccuracyDetected(null);
       onLocating(false);
     };
 
@@ -105,7 +119,7 @@ function LocationHandler({
       map.off('locationfound', handleLocationFound);
       map.off('locationerror', handleLocationError);
     };
-  }, [map, onLocationFound, onLocating, refreshTrigger]);
+  }, [map, onLocationFound, onLocating, refreshTrigger, highAccuracy, onAccuracyDetected]);
 
   return null;
 }
@@ -179,6 +193,10 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
 
+  // GPS accuracy state
+  const [highAccuracyMode, setHighAccuracyMode] = useState(true);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+
   const handleRefreshLocation = useCallback(() => {
     setLoading(true);
     setRefreshTrigger(prev => prev + 1);
@@ -186,6 +204,16 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
 
   const handleLocating = useCallback((locating: boolean) => {
     setIsLocating(locating);
+  }, []);
+
+  const handleAccuracyDetected = useCallback((accuracy: number | null) => {
+    setGpsAccuracy(accuracy);
+  }, []);
+
+  const toggleHighAccuracy = useCallback(() => {
+    setHighAccuracyMode(prev => !prev);
+    // Trigger location refresh when toggling
+    setRefreshTrigger(prev => prev + 1);
   }, []);
 
   // Search for locations using OpenStreetMap Nominatim
@@ -296,7 +324,7 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
 
   const fetchToilets = useCallback(async (lat: number, lng: number) => {
     try {
-      const response = await fetch(`/api/toilets?lat=${lat}&lng=${lng}&radius=3&limit=20`);
+      const response = await fetch(`/api/toilets?lat=${lat}&lng=${lng}&radius=5&limit=50`);
       const data = await response.json();
 
       // Calculate distance for each toilet
@@ -387,6 +415,20 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
             Baby Change
           </button>
 
+          {/* High Accuracy Toggle */}
+          <button
+            onClick={toggleHighAccuracy}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              highAccuracyMode
+                ? 'bg-purple-500 text-white shadow-md'
+                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-purple-400'
+            }`}
+            title={highAccuracyMode ? 'Using GPS (more accurate, slower)' : 'Using WiFi/Network (faster, less accurate)'}
+          >
+            <Crosshair className="w-4 h-4" />
+            {highAccuracyMode ? 'GPS' : 'Fast'}
+          </button>
+
           {/* Refresh Location Button */}
           <button
             onClick={handleRefreshLocation}
@@ -401,6 +443,27 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
             {isLocating ? 'Locating...' : 'My Location'}
           </button>
         </div>
+
+        {/* GPS Accuracy Indicator */}
+        {gpsAccuracy !== null && (
+          <div className={`mb-3 flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${
+            gpsAccuracy <= 50 
+              ? 'bg-emerald-50 text-emerald-700' 
+              : gpsAccuracy <= 200 
+              ? 'bg-amber-50 text-amber-700' 
+              : 'bg-red-50 text-red-700'
+          }`}>
+            <Target className="w-4 h-4" />
+            <span className="font-medium">
+              Location accuracy: ±{gpsAccuracy < 1000 ? `${Math.round(gpsAccuracy)}m` : `${(gpsAccuracy / 1000).toFixed(1)}km`}
+            </span>
+            {gpsAccuracy > 200 && (
+              <span className="text-xs opacity-75">
+                (Try enabling GPS mode for better accuracy)
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="mb-4 flex flex-wrap gap-2">
@@ -438,6 +501,8 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
               onLocationFound={handleLocationFound} 
               onLocating={handleLocating}
               refreshTrigger={refreshTrigger}
+              highAccuracy={highAccuracyMode}
+              onAccuracyDetected={handleAccuracyDetected}
             />
             <FlyToLocation position={selectedToilet} />
             <FlyToSearch position={searchLocation} onComplete={handleSearchComplete} />

@@ -29,7 +29,26 @@ export async function getNearbyToilets(
   radiusKm: number = 5,
   limit: number = 50
 ): Promise<Toilet[]> {
-  // Simple bounding box query
+  // Try RPC function first for accurate distance-based results
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('find_nearby_toilets', {
+      user_lat: lat,
+      user_lng: lng,
+      radius_meters: radiusKm * 1000, // Convert km to meters
+      max_results: limit,
+    });
+
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      return rpcData as Toilet[];
+    }
+    
+    // If RPC returns empty or fails, fall back to bounding box
+    console.log('RPC returned empty, falling back to bounding box query');
+  } catch (rpcErr) {
+    console.log('RPC function failed, using fallback:', rpcErr);
+  }
+
+  // Fallback: Simple bounding box query
   const latDiff = radiusKm / 111;
   const lngDiff = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
 
