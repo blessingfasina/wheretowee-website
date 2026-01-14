@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X, Target, Crosshair } from 'lucide-react';
+import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X, Target, Crosshair, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { trackGetDirections, trackMapSearch, trackInaccuracyReport } from '@/lib/analytics';
 
 // Custom toilet marker - Standard
@@ -197,6 +197,18 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const [highAccuracyMode, setHighAccuracyMode] = useState(true);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
 
+  // Expanded toilet state
+  const [expandedToiletId, setExpandedToiletId] = useState<number | null>(null);
+
+  // Rating modal state
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingToiletId, setRatingToiletId] = useState<number | null>(null);
+  const [ratingToiletName, setRatingToiletName] = useState<string>('');
+  const [selectedRating, setSelectedRating] = useState<number>(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+
   const handleRefreshLocation = useCallback(() => {
     setLoading(true);
     setRefreshTrigger(prev => prev + 1);
@@ -322,6 +334,52 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     setShowReportModal(true);
   };
 
+  // Toggle expanded toilet
+  const toggleExpandedToilet = (toiletId: number) => {
+    setExpandedToiletId(prev => prev === toiletId ? null : toiletId);
+  };
+
+  // Open rating modal
+  const openRatingModal = (toiletId: number, toiletName: string) => {
+    setRatingToiletId(toiletId);
+    setRatingToiletName(toiletName);
+    setShowRatingModal(true);
+  };
+
+  // Handle rating submission
+  const handleSubmitRating = async () => {
+    if (!ratingToiletId || selectedRating === 0) return;
+
+    setIsSubmittingRating(true);
+    try {
+      const response = await fetch('/api/ratings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toilet_id: ratingToiletId,
+          rating: selectedRating,
+          comment: ratingComment || null,
+        }),
+      });
+
+      if (response.ok) {
+        setRatingSubmitted(true);
+        setTimeout(() => {
+          setShowRatingModal(false);
+          setRatingSubmitted(false);
+          setSelectedRating(0);
+          setRatingComment('');
+          setRatingToiletId(null);
+          setRatingToiletName('');
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Rating submission error:', error);
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
   const fetchToilets = useCallback(async (lat: number, lng: number) => {
     try {
       const response = await fetch(`/api/toilets?lat=${lat}&lng=${lng}&radius=5&limit=50`);
@@ -358,8 +416,8 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     return true;
   });
 
-  // Get top 5 closest
-  const closestToilets = filteredToilets.slice(0, 5);
+  // Get top 7 closest
+  const closestToilets = filteredToilets.slice(0, 7);
 
   const getIcon = (toilet: Toilet) => {
     if (toilet.fee === 'no' || toilet.fee === 'free') return FreeIcon;
@@ -665,93 +723,140 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
         ) : (
           <div className="space-y-3">
             {closestToilets.map((toilet, index) => (
-              <button
+              <div
                 key={toilet.id}
-                onClick={() => handleToiletClick(toilet)}
-                className="w-full text-left bg-white rounded-xl p-4 border-2 border-gray-100 hover:border-emerald-300 hover:shadow-md transition-all group"
+                className={`bg-white rounded-xl border-2 transition-all ${
+                  expandedToiletId === toilet.id 
+                    ? 'border-emerald-400 shadow-md' 
+                    : 'border-gray-100 hover:border-emerald-300 hover:shadow-md'
+                }`}
               >
-                <div className="flex items-start gap-3">
-                  {/* Rank Badge */}
-                  <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                      index === 0
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {index + 1}
-                  </div>
+                {/* Main Card - Clickable */}
+                <button
+                  onClick={() => {
+                    handleToiletClick(toilet);
+                    toggleExpandedToilet(toilet.id);
+                  }}
+                  className="w-full text-left p-4 group"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Rank Badge */}
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        index === 0
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {index + 1}
+                    </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-800 truncate group-hover:text-emerald-600 transition-colors">
-                      {toilet.name}
-                    </h3>
-                    {toilet.address && (
-                      <p className="text-sm text-gray-500 truncate mt-0.5">{toilet.address}</p>
-                    )}
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-800 truncate group-hover:text-emerald-600 transition-colors">
+                        {toilet.name}
+                      </h3>
+                      {toilet.address && (
+                        <p className="text-sm text-gray-500 truncate mt-0.5">{toilet.address}</p>
+                      )}
 
-                    {/* Features */}
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {isAccessible(toilet) ? (
-                        <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
-                          <Accessibility className="w-3 h-3" />
-                          Accessible
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
-                          <Accessibility className="w-3 h-3" />
-                          Not Accessible
+                      {/* Features */}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {isAccessible(toilet) ? (
+                          <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
+                            <Accessibility className="w-3 h-3" />
+                            Accessible
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
+                            <Accessibility className="w-3 h-3" />
+                            Not Accessible
+                          </span>
+                        )}
+                        {hasBabyChange(toilet) ? (
+                          <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-medium">
+                            <Baby className="w-3 h-3" />
+                            Baby Change
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
+                            <Baby className="w-3 h-3" />
+                            No Baby Change
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Distance & Expand Icon */}
+                    <div className="flex-shrink-0 text-right flex flex-col items-end gap-2">
+                      {toilet.distance !== undefined && (
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${
+                            toilet.distance < 0.5
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : toilet.distance < 1
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {formatDistance(toilet.distance)}
                         </span>
                       )}
-                      {hasBabyChange(toilet) ? (
-                        <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-medium">
-                          <Baby className="w-3 h-3" />
-                          Baby Change
-                        </span>
+                      {expandedToiletId === toilet.id ? (
+                        <ChevronUp className="w-5 h-5 text-gray-400" />
                       ) : (
-                        <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
-                          <Baby className="w-3 h-3" />
-                          No Baby Change
-                        </span>
+                        <ChevronDown className="w-5 h-5 text-gray-400" />
                       )}
                     </div>
                   </div>
+                </button>
 
-                  {/* Distance */}
-                  <div className="flex-shrink-0 text-right">
-                    {toilet.distance !== undefined && (
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${
-                          toilet.distance < 0.5
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : toilet.distance < 1
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
+                {/* Expanded Actions */}
+                {expandedToiletId === toilet.id && (
+                  <div className="px-4 pb-4 pt-0 border-t border-gray-100">
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {/* Get Directions */}
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          trackGetDirections(toilet.name, toilet.id);
+                        }}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-600 transition-colors"
                       >
-                        {formatDistance(toilet.distance)}
-                      </span>
-                    )}
+                        <Navigation className="w-4 h-4" />
+                        Get Directions
+                      </a>
+                      
+                      {/* Rate Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openRatingModal(toilet.id, toilet.name);
+                        }}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-amber-500 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-amber-600 transition-colors"
+                      >
+                        <Star className="w-4 h-4" />
+                        Rate
+                      </button>
+                      
+                      {/* Report Inaccuracy Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openReportModal(toilet.id);
+                        }}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gray-500 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-600 transition-colors"
+                      >
+                        <AlertTriangle className="w-4 h-4" />
+                        Report
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                {/* Get Directions Link */}
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    trackGetDirections(toilet.name, toilet.id);
-                  }}
-                  className="mt-3 inline-flex items-center gap-1.5 text-emerald-600 text-sm font-semibold hover:text-emerald-700"
-                >
-                  <Navigation className="w-4 h-4" />
-                  Get Directions
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </button>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -870,6 +975,121 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                       </span>
                     ) : (
                       'Submit Report'
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && (
+        <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500" />
+                Rate This Toilet
+              </h3>
+              <button
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setSelectedRating(0);
+                  setRatingComment('');
+                  setRatingToiletId(null);
+                  setRatingToiletName('');
+                }}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5">
+              {ratingSubmitted ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Star className="w-8 h-8 text-amber-500 fill-amber-500" />
+                  </div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-2">Thank You!</h4>
+                  <p className="text-gray-600">Your rating has been submitted.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-600 text-sm mb-2">
+                    Rating: <span className="font-semibold text-gray-800">{ratingToiletName}</span>
+                  </p>
+                  <p className="text-gray-500 text-sm mb-4">
+                    How was your experience at this toilet?
+                  </p>
+
+                  {/* Star Rating */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Your Rating *
+                    </label>
+                    <div className="flex justify-center gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setSelectedRating(star)}
+                          className="p-1 transition-transform hover:scale-110"
+                        >
+                          <Star
+                            className={`w-10 h-10 transition-colors ${
+                              star <= selectedRating
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-gray-300 hover:text-amber-200'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-center text-sm text-gray-500 mt-2">
+                      {selectedRating === 0 && 'Tap a star to rate'}
+                      {selectedRating === 1 && 'Poor'}
+                      {selectedRating === 2 && 'Fair'}
+                      {selectedRating === 3 && 'Good'}
+                      {selectedRating === 4 && 'Very Good'}
+                      {selectedRating === 5 && 'Excellent'}
+                    </p>
+                  </div>
+
+                  {/* Comment */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Comment (optional)
+                    </label>
+                    <textarea
+                      value={ratingComment}
+                      onChange={(e) => setRatingComment(e.target.value)}
+                      placeholder="Share your experience..."
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-amber-400 outline-none transition-colors resize-none"
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={handleSubmitRating}
+                    disabled={selectedRating === 0 || isSubmittingRating}
+                    className={`w-full py-3 rounded-xl font-semibold transition-all ${
+                      selectedRating === 0 || isSubmittingRating
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-amber-500 text-white hover:bg-amber-600 shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    {isSubmittingRating ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Submitting...
+                      </span>
+                    ) : (
+                      'Submit Rating'
                     )}
                   </button>
                 </>
