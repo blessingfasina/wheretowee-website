@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X, Target, Crosshair, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X, Target, Crosshair, Star, ChevronDown, ChevronUp, Clock, Key, Info, CheckCircle } from 'lucide-react';
 import { trackGetDirections, trackMapSearch, trackInaccuracyReport } from '@/lib/analytics';
 
 // Custom toilet marker - Standard
@@ -45,6 +45,15 @@ export interface Toilet {
   baby_changing: string | null;
   average_rating: number | null;
   distance?: number;
+  // V2 fields
+  opening_hours?: string | null;
+  notes?: string | null;
+  payment_details?: string | null;
+  radar_key?: string | null;
+  verified_at?: string | null;
+  men?: string | null;
+  women?: string | null;
+  unisex?: string | null;
 }
 
 // Calculate distance using Haversine formula
@@ -68,6 +77,49 @@ function formatDistance(km: number): string {
     return `${Math.round(km * 1000)}m`;
   }
   return `${km.toFixed(1)}km`;
+}
+
+// Check if toilet is currently open based on opening_hours string
+function isOpenNow(openingHours: string | null | undefined): boolean | null {
+  if (!openingHours) return null; // Unknown
+  
+  const now = new Date();
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const currentDay = dayNames[now.getDay()];
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Minutes since midnight
+  
+  // Handle "Daily: HH:MM-HH:MM" format
+  const dailyMatch = openingHours.match(/Daily:\s*(\d{2}):(\d{2})-(\d{2}):(\d{2})/i);
+  if (dailyMatch) {
+    const openTime = parseInt(dailyMatch[1]) * 60 + parseInt(dailyMatch[2]);
+    const closeTime = parseInt(dailyMatch[3]) * 60 + parseInt(dailyMatch[4]);
+    return currentTime >= openTime && currentTime <= closeTime;
+  }
+  
+  // Handle "Mon: HH:MM-HH:MM, Tue: ..." format
+  const dayPattern = new RegExp(`${currentDay}:\\s*(\\d{2}):(\\d{2})-(\\d{2}):(\\d{2})`, 'i');
+  const dayMatch = openingHours.match(dayPattern);
+  if (dayMatch) {
+    const openTime = parseInt(dayMatch[1]) * 60 + parseInt(dayMatch[2]);
+    const closeTime = parseInt(dayMatch[3]) * 60 + parseInt(dayMatch[4]);
+    return currentTime >= openTime && currentTime <= closeTime;
+  }
+  
+  // Check if explicitly closed today
+  const closedPattern = new RegExp(`${currentDay}:\\s*Closed`, 'i');
+  if (closedPattern.test(openingHours)) {
+    return false;
+  }
+  
+  return null; // Unknown
+}
+
+// Get open status label
+function getOpenStatus(openingHours: string | null | undefined): { label: string; color: string } {
+  const isOpen = isOpenNow(openingHours);
+  if (isOpen === true) return { label: 'Open Now', color: 'emerald' };
+  if (isOpen === false) return { label: 'Closed', color: 'red' };
+  return { label: 'Hours Unknown', color: 'gray' };
 }
 
 // Component to handle location
@@ -174,6 +226,8 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     accessible: false,
     babyChanging: false,
     free: false,
+    openNow: false,
+    radarKey: false,
   });
 
   // Search state
@@ -413,6 +467,8 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     if (filters.accessible && toilet.wheelchair !== 'yes') return false;
     if (filters.babyChanging && toilet.baby_changing !== 'yes') return false;
     if (filters.free && toilet.fee !== 'no' && toilet.fee !== 'free') return false;
+    if (filters.openNow && isOpenNow(toilet.opening_hours) !== true) return false;
+    if (filters.radarKey && toilet.radar_key !== 'yes') return false;
     return true;
   });
 
@@ -432,6 +488,8 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const isFree = (toilet: Toilet) => toilet.fee === 'no' || toilet.fee === 'free';
   const isAccessible = (toilet: Toilet) => toilet.wheelchair === 'yes';
   const hasBabyChange = (toilet: Toilet) => toilet.baby_changing === 'yes';
+  const needsRadarKey = (toilet: Toilet) => toilet.radar_key === 'yes';
+  const isVerified = (toilet: Toilet) => !!toilet.verified_at;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -471,6 +529,29 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
           >
             <Baby className="w-4 h-4" />
             Baby Change
+          </button>
+          <button
+            onClick={() => setFilters((f) => ({ ...f, openNow: !f.openNow }))}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              filters.openNow
+                ? 'bg-teal-500 text-white shadow-md'
+                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-teal-400'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Open Now
+          </button>
+          <button
+            onClick={() => setFilters((f) => ({ ...f, radarKey: !f.radarKey }))}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              filters.radarKey
+                ? 'bg-indigo-500 text-white shadow-md'
+                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-indigo-400'
+            }`}
+            title="Show toilets that accept RADAR keys"
+          >
+            <Key className="w-4 h-4" />
+            RADAR
           </button>
 
           {/* High Accuracy Toggle */}
@@ -762,26 +843,48 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
 
                       {/* Features */}
                       <div className="flex flex-wrap gap-1.5 mt-2">
-                        {isAccessible(toilet) ? (
+                        {/* Open/Closed Status */}
+                        {toilet.opening_hours && (
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${
+                            isOpenNow(toilet.opening_hours) === true 
+                              ? 'bg-emerald-100 text-emerald-700' 
+                              : isOpenNow(toilet.opening_hours) === false 
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            <Clock className="w-3 h-3" />
+                            {getOpenStatus(toilet.opening_hours).label}
+                          </span>
+                        )}
+                        {/* Free Badge */}
+                        {isFree(toilet) && (
+                          <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded-full font-medium">
+                            <Coins className="w-3 h-3" />
+                            Free
+                          </span>
+                        )}
+                        {isAccessible(toilet) && (
                           <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
                             <Accessibility className="w-3 h-3" />
                             Accessible
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
-                            <Accessibility className="w-3 h-3" />
-                            Not Accessible
-                          </span>
                         )}
-                        {hasBabyChange(toilet) ? (
+                        {hasBabyChange(toilet) && (
                           <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-medium">
                             <Baby className="w-3 h-3" />
                             Baby Change
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full font-medium">
-                            <Baby className="w-3 h-3" />
-                            No Baby Change
+                        )}
+                        {needsRadarKey(toilet) && (
+                          <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full font-medium">
+                            <Key className="w-3 h-3" />
+                            RADAR
+                          </span>
+                        )}
+                        {isVerified(toilet) && (
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-xs px-2 py-1 rounded-full font-medium">
+                            <CheckCircle className="w-3 h-3" />
+                            Verified
                           </span>
                         )}
                       </div>
@@ -811,10 +914,97 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                   </div>
                 </button>
 
-                {/* Expanded Actions */}
+                {/* Expanded Details & Actions */}
                 {expandedToiletId === toilet.id && (
                   <div className="px-4 pb-4 pt-0 border-t border-gray-100">
-                    <div className="flex flex-wrap gap-2 mt-3">
+                    {/* Detailed Information */}
+                    <div className="mt-3 space-y-3">
+                      {/* Open Status & Hours */}
+                      {toilet.opening_hours && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Clock className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold mr-2 ${
+                              isOpenNow(toilet.opening_hours) === true 
+                                ? 'bg-emerald-100 text-emerald-700' 
+                                : isOpenNow(toilet.opening_hours) === false 
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {getOpenStatus(toilet.opening_hours).label}
+                            </span>
+                            <span className="text-gray-600 text-xs">{toilet.opening_hours}</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Fee Information */}
+                      <div className="flex items-start gap-2 text-sm">
+                        <Coins className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          {isFree(toilet) ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                              Free to use
+                            </span>
+                          ) : toilet.payment_details ? (
+                            <span className="text-gray-700">{toilet.payment_details}</span>
+                          ) : toilet.fee === 'yes' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                              Fee required
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 text-xs">Fee info not available</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* RADAR Key */}
+                      {needsRadarKey(toilet) && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Key className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                            🔑 RADAR Key Required
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Gender Info */}
+                      {(toilet.men === 'yes' || toilet.women === 'yes' || toilet.unisex === 'yes') && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Info className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="flex flex-wrap gap-1">
+                            {toilet.men === 'yes' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">Men</span>
+                            )}
+                            {toilet.women === 'yes' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-pink-50 text-pink-600">Women</span>
+                            )}
+                            {toilet.unisex === 'yes' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-600">Unisex</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Notes */}
+                      {toilet.notes && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-gray-600 text-xs leading-relaxed">{toilet.notes}</p>
+                        </div>
+                      )}
+                      
+                      {/* Verified Badge */}
+                      {isVerified(toilet) && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                          <span className="text-emerald-600 text-xs font-medium">Verified location</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2 mt-4">
                       {/* Get Directions */}
                       <a
                         href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
