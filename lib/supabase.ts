@@ -5,7 +5,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Base toilet interface (works with both v1 and v2)
+// Base toilet interface (works with v1, v2, and v3)
 export interface Toilet {
   id: number;
   name: string;
@@ -17,13 +17,16 @@ export interface Toilet {
   baby_changing: string | null;
   unisex: string | null;
   opening_hours: string | null;
-  operator_name: string | null;
+  operator_name?: string | null;  // V1/V2
+  operator?: string | null;       // V3
   average_rating: number | null;
   rating_count: number | null;
   status: string;
   created_at: string;
-  // V2 additional fields (optional for backward compatibility)
-  original_id?: string;
+  // V2/V3 additional fields (optional for backward compatibility)
+  original_id?: string;           // V2
+  original_id_v1?: string | null; // V3
+  original_id_v2?: string | null; // V3
   radar_key?: string | null;
   men?: string | null;
   women?: string | null;
@@ -34,6 +37,7 @@ export interface Toilet {
   notes?: string | null;
   payment_details?: string | null;
   verified_at?: string | null;
+  source?: string | null;         // V3: 'v1', 'v2', or 'merged'
 }
 
 // Cache for active table name (to avoid repeated DB calls)
@@ -77,7 +81,14 @@ export async function getActiveToiletTable(): Promise<string> {
  * Get the appropriate RPC function name based on table
  */
 function getRpcFunctionName(tableName: string): string {
-  return tableName === 'toilets_v2' ? 'find_nearby_toilets_v2' : 'find_nearby_toilets';
+  switch (tableName) {
+    case 'toilets_v3':
+      return 'find_nearby_toilets_v3';
+    case 'toilets_v2':
+      return 'find_nearby_toilets_v2';
+    default:
+      return 'find_nearby_toilets';
+  }
 }
 
 /**
@@ -205,9 +216,9 @@ export async function getToiletStats(): Promise<{
     .or('status.eq.active,status.eq.approved')
     .or('fee.eq.no,fee.eq.free');
 
-  // V2 specific stat
+  // V2/V3 specific stat (radar key)
   let radarRequired = 0;
-  if (tableName === 'toilets_v2') {
+  if (tableName === 'toilets_v2' || tableName === 'toilets_v3') {
     const { count } = await supabase
       .from(tableName)
       .select('*', { count: 'exact', head: true })
@@ -216,12 +227,14 @@ export async function getToiletStats(): Promise<{
     radarRequired = count || 0;
   }
 
+  const hasEnhancedFields = tableName === 'toilets_v2' || tableName === 'toilets_v3';
+
   return {
     total: total || 0,
     accessible: accessible || 0,
     babyChanging: babyChanging || 0,
     free: free || 0,
-    ...(tableName === 'toilets_v2' && { radarRequired }),
+    ...(hasEnhancedFields && { radarRequired }),
   };
 }
 
@@ -260,7 +273,8 @@ export async function getCities(): Promise<string[]> {
  */
 export async function getDataSourceInfo(): Promise<{
   tableName: string;
-  isV2: boolean;
+  version: 'v1' | 'v2' | 'v3';
+  hasEnhancedFields: boolean;
   recordCount: number;
 }> {
   const tableName = await getActiveToiletTable();
@@ -270,9 +284,14 @@ export async function getDataSourceInfo(): Promise<{
     .select('*', { count: 'exact', head: true })
     .or('status.eq.active,status.eq.approved');
 
+  let version: 'v1' | 'v2' | 'v3' = 'v1';
+  if (tableName === 'toilets_v2') version = 'v2';
+  if (tableName === 'toilets_v3') version = 'v3';
+
   return {
     tableName,
-    isV2: tableName === 'toilets_v2',
+    version,
+    hasEnhancedFields: tableName === 'toilets_v2' || tableName === 'toilets_v3',
     recordCount: count || 0,
   };
 }
