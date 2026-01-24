@@ -26,6 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { route: '/contact', priority: 0.5, changeFreq: 'monthly' as const },
     { route: '/privacy', priority: 0.3, changeFreq: 'yearly' as const },
     { route: '/terms', priority: 0.3, changeFreq: 'yearly' as const },
+    { route: '/accessibility', priority: 0.4, changeFreq: 'yearly' as const },
+    { route: '/cookies', priority: 0.3, changeFreq: 'yearly' as const },
   ].map((page) => ({
     url: `${baseUrl}${page.route}`,
     lastModified: new Date(),

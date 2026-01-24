@@ -35,6 +35,18 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // Redirect www.wheretowee.uk to wheretowee.uk (canonical)
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'www.wheretowee.uk',
+          },
+        ],
+        destination: 'https://wheretowee.uk/:path*',
+        permanent: true,
+      },
       // Redirect .co.uk to .uk (canonical)
       {
         source: '/:path*',

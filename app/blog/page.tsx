@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Where To Wee Blog',
     description: 'Helpful articles about finding public toilets and accessibility guides.',
+    url: 'https://wheretowee.uk/blog',
+  },
+  alternates: {
+    canonical: 'https://wheretowee.uk/blog',
   },
 };
 

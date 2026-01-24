@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Press Kit - Where To Wee',
     description: 'Download brand assets, read our founder story, and access key statistics for media coverage.',
+    url: 'https://wheretowee.uk/press',
+  },
+  alternates: {
+    canonical: 'https://wheretowee.uk/press',
   },
 };
 

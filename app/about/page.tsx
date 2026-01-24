@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'About Where To Wee - The Story Behind the App',
     description: 'Born from a real struggle to find toilets in the UK, Where To Wee helps over 1.5 million monthly searchers find the nearest loo.',
+    url: 'https://wheretowee.uk/about',
+  },
+  alternates: {
+    canonical: 'https://wheretowee.uk/about',
   },
 };
 

@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Find Public Toilets by City - Where To Wee',
     description: 'Browse 18,000+ public toilets across all major UK cities.',
+    url: 'https://wheretowee.uk/toilets',
+  },
+  alternates: {
+    canonical: 'https://wheretowee.uk/toilets',
   },
 };
 

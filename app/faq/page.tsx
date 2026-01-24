@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: 'Frequently Asked Questions - Find Toilets Near Me',
   description:
     'Common questions about finding public toilets near you, accessible toilets in the UK, baby changing facilities, and using the Where To Wee app.',
+  alternates: {
+    canonical: 'https://wheretowee.uk/faq',
+  },
   keywords: [
     'toilets near me',
     'public toilets near me',

@@ -3,6 +3,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: 'Privacy policy for Where To Wee - how we handle your data and protect your privacy.',
+  alternates: {
+    canonical: 'https://wheretowee.uk/privacy',
+  },
 };
 
 export default function PrivacyPage() {

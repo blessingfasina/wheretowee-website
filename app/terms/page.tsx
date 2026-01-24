@@ -3,6 +3,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description: 'Terms of service for using Where To Wee - the UK toilet finder app.',
+  alternates: {
+    canonical: 'https://wheretowee.uk/terms',
+  },
 };
 
 export default function TermsPage() {

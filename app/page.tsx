@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   MapPin,
@@ -15,6 +16,12 @@ import {
   Shield,
 } from 'lucide-react';
 import DidYouKnow from '@/components/DidYouKnow';
+
+export const metadata: Metadata = {
+  alternates: {
+    canonical: 'https://wheretowee.uk',
+  },
+};
 
 // Stats - update these with real numbers
 const stats = [
