@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Frequently Asked Questions - Find Toilets Near Me',
+  title: 'Public Toilets UK FAQ - RADAR Keys, Baby Change & More',
   description:
-    'Common questions about finding public toilets near you, accessible toilets in the UK, baby changing facilities, and using the Where To Wee app.',
+    'Got questions about finding toilets near you? Learn about RADAR keys, accessible loos, baby changing facilities & free public toilets across the UK.',
   alternates: {
     canonical: 'https://wheretowee.uk/faq',
   },

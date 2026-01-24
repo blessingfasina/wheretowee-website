@@ -54,8 +54,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cityName = cityInfo.fullName;
 
   return {
-    title: `Toilets Near Me in ${cityName} | Free Public Toilets ${cityName}`,
-    description: `Find public toilets near me in ${cityName}. 50+ locations with wheelchair accessible toilets, baby changing facilities, and free options. Updated 2026 toilet map for ${cityName}.`,
+    title: `Public Toilets ${cityName} - Find Nearest Loo NOW | Free Map`,
+    description: `Need a toilet in ${cityName}? Find the nearest loo instantly! 50+ public toilets with wheelchair access, baby change & free options. Interactive map.`,
     keywords: [
       `toilets near me ${cityName}`,
       `public toilets ${cityName}`,

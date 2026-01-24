@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { MapPin, Heart, Users, Shield, Mail, ChevronRight, Lightbulb, Search, TrendingUp, Rocket } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'About Where To Wee - Our Story & Mission',
+  title: 'About Us - Why We Built the UK\'s Best Toilet Finder',
   description:
-    'Discover the story behind Where To Wee - born from a real struggle to find toilets in the UK. Learn how one frustrating experience led to a solution for millions.',
+    'Born from a desperate search for a loo in central London. Now helping millions find toilets across the UK. Our story, mission & the team behind Where To Wee.',
   openGraph: {
     title: 'About Where To Wee - The Story Behind the App',
     description: 'Born from a real struggle to find toilets in the UK, Where To Wee helps over 1.5 million monthly searchers find the nearest loo.',

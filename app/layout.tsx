@@ -14,11 +14,11 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   metadataBase: new URL('https://wheretowee.uk'),
   title: {
-    default: 'Find Toilets Near Me | Public Toilets UK | Where To Wee',
-    template: '%s | Where To Wee - UK Toilet Finder',
+    default: 'Toilets Near Me - Find 18,000+ Public Toilets UK | Free Map',
+    template: '%s | Where To Wee',
   },
   description:
-    'Find public toilets near me instantly! 18,000+ toilets across the UK with wheelchair accessibility, baby changing facilities, and free options. The UK\'s #1 toilet finder app.',
+    'Need a toilet NOW? Find the nearest public toilet in seconds. 18,000+ locations across UK with wheelchair access, baby changing & ratings. 100% free!',
   keywords: [
     'toilets near me',
     'toilet near me',

@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
 
 export const metadata: Metadata = {
-  title: 'Toilets Near Me - Find Public Toilets Now | Free Map',
+  title: 'Toilets Near Me NOW - Interactive Map | Find in Seconds',
   description:
-    'Find toilets near me instantly! Interactive map showing 18,000+ public toilets across the UK. Filter by wheelchair accessible, baby changing, and free toilets. Updated 2026.',
+    'Desperate for a loo? Find the nearest toilet instantly! Free interactive map with 18,000+ UK toilets. Filter: wheelchair, baby change, free. Updated daily.',
   keywords: [
     'toilets near me',
     'toilet near me',

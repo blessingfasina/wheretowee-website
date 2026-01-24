@@ -4,9 +4,9 @@ import { MapPin, ChevronRight, Search } from 'lucide-react';
 import { getCities } from '@/lib/supabase';
 
 export const metadata: Metadata = {
-  title: 'Find Public Toilets by City - UK Toilet Directory',
+  title: 'Public Toilets UK - Every City Covered | Free Directory',
   description:
-    'Browse public toilets across all major UK cities. Find accessible toilets, baby changing facilities, and free public loos in London, Manchester, Birmingham, and more.',
+    'Find public toilets in London, Manchester, Birmingham & 500+ UK cities. Free, accessible & baby change filters. Your complete UK toilet directory.',
   openGraph: {
     title: 'Find Public Toilets by City - Where To Wee',
     description: 'Browse 18,000+ public toilets across all major UK cities.',

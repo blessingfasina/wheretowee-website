@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Download Where To Wee App - Free Toilet Finder for iOS & Android',
-  description: 'Download the free Where To Wee app to find public toilets near you. Available on iOS and Android with 18,000+ UK toilet locations, accessibility info, and ratings.',
+  title: 'Download Free Toilet Finder App - iOS & Android | 18,000+ Loos',
+  description: 'Never get caught short again! Download our FREE app to find toilets near you instantly. Works offline. No ads. 18,000+ UK locations with ratings.',
   alternates: {
     canonical: 'https://wheretowee.uk/download',
   },

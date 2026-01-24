@@ -4,9 +4,9 @@ import { Calendar, Clock, ChevronRight, BookOpen } from 'lucide-react';
 import { getAllPosts, getCategories, BlogPost } from '@/lib/blog';
 
 export const metadata: Metadata = {
-  title: 'Blog - Toilet Tips, Accessibility Guides & News',
+  title: 'UK Toilet Tips Blog - RADAR Keys, Accessibility & Travel Guides',
   description:
-    'Helpful articles about finding public toilets, accessibility guides, and tips for parents. Read the Where To Wee blog.',
+    'Essential guides for finding toilets in the UK. RADAR key info, accessibility tips, best toilets for parents & travellers. Expert advice from Where To Wee.',
   openGraph: {
     title: 'Where To Wee Blog',
     description: 'Helpful articles about finding public toilets and accessibility guides.',
