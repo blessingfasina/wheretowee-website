@@ -306,7 +306,7 @@ export default function AboutPage() {
               View Press Kit
             </Link>
             <Link href="/download" className="btn bg-white/10 text-white hover:bg-white/20 btn-lg">
-              Join Waitlist
+              Download App
             </Link>
           </div>
         </div>

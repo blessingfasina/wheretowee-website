@@ -295,14 +295,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                   Find Toilets Near You
                 </h2>
                 <p className="text-white/90 mb-8 text-lg">
-                  Join the waitlist for our upcoming mobile app or try the web version now!
+                  Download our free mobile app or try the web version now!
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link 
-                    href="/download" 
+                  <Link
+                    href="/download"
                     className="inline-flex items-center justify-center px-8 py-3 bg-white text-mint-600 font-bold rounded-full hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl hover:scale-105"
                   >
-                    🔔 Join Waitlist
+                    📱 Download App
                   </Link>
                   <Link 
                     href="/map" 

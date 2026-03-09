@@ -4,7 +4,7 @@ import { MapPin, Mail, Heart } from 'lucide-react';
 const footerLinks = {
   product: [
     { name: 'Find Toilets', href: '/map' },
-    { name: 'Join Waitlist', href: '/download' },
+    { name: 'Download App', href: '/download' },
     { name: 'Add a Toilet', href: '/submit' },
     { name: 'City Directory', href: '/toilets' },
   ],

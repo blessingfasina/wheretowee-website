@@ -406,7 +406,7 @@ export default function PressPage() {
                   Try Where To Wee
                 </h2>
                 <p className="text-white/90 mb-8 text-lg">
-                  Experience the app yourself or join our waitlist for launch updates.
+                  Experience the app yourself — available free on the App Store and Google Play.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link 
@@ -419,7 +419,7 @@ export default function PressPage() {
                     href="/download" 
                     className="inline-flex items-center justify-center px-8 py-3 bg-white/20 text-white font-bold rounded-full hover:bg-white/30 transition-all border-2 border-white/50"
                   >
-                    🔔 Join Waitlist
+                    📱 Download App
                   </Link>
                 </div>
               </div>

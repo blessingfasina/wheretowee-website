@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Menu, X, MapPin, Bell, Info, Map, BookOpen, Mail } from 'lucide-react';
+import { Menu, X, MapPin, Download, Info, Map, BookOpen, Mail } from 'lucide-react';
 
 const navigation = [
   { name: 'Find Toilets', href: '/map', icon: Map },
@@ -46,8 +46,8 @@ export default function Header() {
           {/* CTA Button */}
           <div className="hidden md:flex items-center gap-4">
             <Link href="/download" className="btn btn-primary">
-              <Bell className="w-4 h-4" />
-              Join Waitlist
+              <Download className="w-4 h-4" />
+              Download App
             </Link>
           </div>
 
@@ -87,8 +87,8 @@ export default function Header() {
                   className="btn btn-primary w-full justify-center"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <Bell className="w-4 h-4" />
-                  Join Waitlist
+                  <Download className="w-4 h-4" />
+                  Download App
                 </Link>
               </div>
             </div>

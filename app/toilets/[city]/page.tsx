@@ -289,11 +289,11 @@ export default async function CityPage({ params }: Props) {
             Get the App for {cityInfo.fullName}
           </h2>
           <p className="text-gray-300 mb-6 max-w-xl mx-auto">
-            Join the waitlist to be notified when our mobile app launches. Find toilets faster, save
-            favorites, and get notifications when you're near a saved location.
+            Download our free mobile app for the best experience. Find toilets faster, save
+            favourites, and get notifications when you're near a saved location.
           </p>
           <Link href="/download" className="btn btn-mint btn-lg">
-            Join Waitlist
+            Download App
           </Link>
         </div>
       </section>

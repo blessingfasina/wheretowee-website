@@ -9,7 +9,7 @@ import {
   Clock,
   Smartphone,
   ChevronRight,
-  Bell,
+  Download,
   Search,
   CheckCircle2,
   Users,
@@ -78,8 +78,8 @@ const cities = [
 const howItWorks = [
   {
     step: 1,
-    title: 'Join the Waitlist',
-    description: 'Sign up to be notified when Where To Wee launches on iOS and Android.',
+    title: 'Download the App',
+    description: 'Get Where To Wee free on the App Store or Google Play.',
   },
   {
     step: 2,
@@ -114,8 +114,8 @@ export default function HomePage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <Link href="/download" className="btn btn-mint btn-lg">
-                  <Bell className="w-5 h-5" />
-                  Join Waitlist
+                  <Download className="w-5 h-5" />
+                  Download App
                 </Link>
                 <Link href="/map" className="btn btn-secondary btn-lg bg-transparent border-white text-white hover:bg-white/10">
                   <Search className="w-5 h-5" />
@@ -315,13 +315,13 @@ export default function HomePage() {
             Ready to Never Get Caught Out Again?
           </h2>
           <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join the waitlist and be the first to download Where To Wee when it launches.
-            Use our web version now to find toilets near you!
+            Download Where To Wee free on the App Store and Google Play.
+            Or use our web version now to find toilets near you!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/download" className="btn btn-mint btn-lg">
-              <Bell className="w-5 h-5" />
-              Join Waitlist
+              <Download className="w-5 h-5" />
+              Download App
             </Link>
             <Link href="/map" className="btn btn-lg bg-white/10 text-white hover:bg-white/20">
               <Search className="w-5 h-5" />
