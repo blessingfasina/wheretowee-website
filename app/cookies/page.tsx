@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import AnalyticsConsentToggle from '@/components/AnalyticsConsentToggle';
 
 export const metadata: Metadata = {
   title: 'Cookie Policy',
@@ -14,7 +15,13 @@ export default function CookiesPage() {
       <div className="container-custom">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-4xl font-bold text-navy-800 mb-4">Cookie Policy</h1>
-          <p className="text-gray-500 mb-8">Last updated: January 2026</p>
+          <p className="text-gray-500 mb-8">Last updated: May 2026</p>
+
+          {/* In-page analytics opt-out — matches the mobile app's
+              About → Privacy → Anonymous analytics toggle. */}
+          <div className="mb-8">
+            <AnalyticsConsentToggle />
+          </div>
 
           <div className="prose prose-lg text-gray-600">
             <h2>What Are Cookies?</h2>

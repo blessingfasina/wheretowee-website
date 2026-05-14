@@ -1,7 +1,21 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { MapPin, Star, Accessibility, Baby, Coins, Navigation, ChevronRight } from 'lucide-react';
+import { MapPin, Star, Accessibility, Baby, Coins, Navigation, ChevronRight, ShieldCheck, BadgeCheck, Clock } from 'lucide-react';
+import {
+  supabase,
+  getActiveToiletTable,
+  getToiletEnrichment,
+  resolveVerificationTier,
+  slugifyToiletName,
+  type Toilet,
+  type VerificationTier,
+} from '@/lib/supabase';
+
+// Revalidate the city pages every hour. New toilets / freshly
+// confirmed status changes show up without a redeploy, but we still
+// get CDN cache benefits.
+export const revalidate = 3600;
 
 // City coordinates for mapping
 const cityCoordinates: Record<string, { lat: number; lng: number; fullName: string }> = {
@@ -89,36 +103,63 @@ export async function generateStaticParams() {
   }));
 }
 
-// Demo toilet data (in production, fetch from Supabase)
-function generateDemoToilets(city: string, count: number = 10) {
-  const cityInfo = cityCoordinates[city];
-  if (!cityInfo) return [];
+/// Fetch real toilets for a city via the active toilet table. Pulls
+/// up to 60 rows ordered by recency so the city page always shows
+/// fresh content. Returns an empty list (and we render an empty state)
+/// if the query fails — never throws, so a Supabase outage degrades
+/// gracefully rather than breaking SEO.
+async function fetchCityToilets(city: string, fullName: string): Promise<Toilet[]> {
+  try {
+    const tableName = await getActiveToiletTable();
+    // Match on both the slug ("milton-keynes") and the display name
+    // ("Milton Keynes") to maximise hit rate. ILIKE is case-insensitive.
+    const slugForLike = fullName.replace(/\s+/g, '%');
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('*')
+      .or('status.eq.active,status.eq.approved')
+      .or(`address.ilike.%${slugForLike}%,address.ilike.%${city}%`)
+      .order('id', { ascending: false })
+      .limit(60);
+    if (error) {
+      console.error(`fetchCityToilets(${city}) error:`, error);
+      return [];
+    }
+    return (data ?? []) as Toilet[];
+  } catch (e) {
+    console.error(`fetchCityToilets(${city}) threw:`, e);
+    return [];
+  }
+}
 
-  const names = [
-    'Public Toilet - High Street',
-    'Shopping Centre Facilities',
-    'Train Station Toilets',
-    'Park Public Convenience',
-    'Library Public Toilet',
-    'Council Offices WC',
-    'Bus Station Facilities',
-    'Supermarket Customer Toilets',
-    'Museum Visitor Facilities',
-    'Sports Centre Changing Rooms',
-  ];
-
-  return names.slice(0, count).map((name, i) => ({
-    id: i + 1,
-    name: `${name}`,
-    address: `Near ${cityInfo.fullName} City Centre`,
-    latitude: cityInfo.lat + (Math.random() - 0.5) * 0.02,
-    longitude: cityInfo.lng + (Math.random() - 0.5) * 0.02,
-    fee: Math.random() > 0.6 ? 'no' : 'yes',
-    wheelchair: Math.random() > 0.4 ? 'yes' : 'no',
-    baby_changing: Math.random() > 0.5 ? 'yes' : 'no',
-    average_rating: 3 + Math.random() * 2,
-    rating_count: Math.floor(Math.random() * 50) + 5,
-  }));
+/// Small badge component used in the inline list of toilets. Mirrors
+/// the verification badge UX on the mobile app's detail screen.
+function VerificationBadge({ tier }: { tier: VerificationTier }) {
+  if (tier === 'unverified') return null;
+  const config: Record<Exclude<VerificationTier, 'unverified'>, { icon: React.ElementType; label: string; cls: string }> = {
+    council_verified: {
+      icon: ShieldCheck,
+      label: 'Council verified',
+      cls: 'bg-sky-100 text-sky-700',
+    },
+    community_verified: {
+      icon: BadgeCheck,
+      label: 'Community verified',
+      cls: 'bg-mint-100 text-mint-700',
+    },
+    recently_confirmed: {
+      icon: Clock,
+      label: 'Recently confirmed',
+      cls: 'bg-blue-100 text-blue-700',
+    },
+  };
+  const c = config[tier];
+  const Icon = c.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 ${c.cls} text-xs px-2 py-1 rounded-full`}>
+      <Icon className="w-3 h-3" /> {c.label}
+    </span>
+  );
 }
 
 export default async function CityPage({ params }: Props) {
@@ -129,11 +170,19 @@ export default async function CityPage({ params }: Props) {
     notFound();
   }
 
-  // In production, fetch real data from Supabase
-  const toilets = generateDemoToilets(city, 12);
+  // Pull real data from Supabase. Falls back to an empty array if the
+  // query fails so the rest of the page (hero + SEO copy + CTA) still
+  // renders and indexes correctly.
+  const toilets = await fetchCityToilets(city, cityInfo.fullName);
+
+  // Enrich with verification info so trust-signal badges can render
+  // alongside the existing accessibility chips. Batched in one RPC.
+  const ids = toilets.map((t) => t.id);
+  const { verification } = await getToiletEnrichment(ids);
+
   const accessibleCount = toilets.filter((t) => t.wheelchair === 'yes').length;
   const babyCount = toilets.filter((t) => t.baby_changing === 'yes').length;
-  const freeCount = toilets.filter((t) => t.fee === 'no').length;
+  const freeCount = toilets.filter((t) => t.fee === 'no' || t.fee === 'free').length;
 
   return (
     <>
@@ -151,8 +200,9 @@ export default async function CityPage({ params }: Props) {
             Public Toilets in {cityInfo.fullName}
           </h1>
           <p className="text-lg text-gray-300 mb-6 max-w-2xl">
-            Find {toilets.length}+ public toilets in {cityInfo.fullName}. View accessibility
-            information, baby changing facilities, ratings, and get directions.
+            {toilets.length > 0
+              ? `Find ${toilets.length}+ public toilets in ${cityInfo.fullName}. View accessibility information, baby changing facilities, ratings, and get directions.`
+              : `Explore public toilets across ${cityInfo.fullName}. Use our interactive map to find accessibility info, baby changing facilities, and get directions.`}
           </p>
           <Link
             href={`/map?lat=${cityInfo.lat}&lng=${cityInfo.lng}`}
@@ -201,48 +251,93 @@ export default async function CityPage({ params }: Props) {
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {toilets.map((toilet) => (
-              <div key={toilet.id} className="card">
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-bold text-navy-800">{toilet.name}</h3>
-                  {toilet.average_rating && (
-                    <div className="flex items-center gap-1 text-sm">
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                      <span className="font-semibold">{toilet.average_rating.toFixed(1)}</span>
+          {toilets.length === 0 ? (
+            <div className="card text-center py-12">
+              <MapPin className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+              <h3 className="font-bold text-navy-800 mb-2">No toilets listed yet</h3>
+              <p className="text-gray-600 mb-4 max-w-md mx-auto">
+                We don&apos;t have any toilets in our database for {cityInfo.fullName} just yet, but
+                the map view shows nearby options. Help the community by submitting one!
+              </p>
+              <Link href="/submit" className="btn btn-mint">
+                Add a Toilet
+              </Link>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {toilets.map((toilet) => {
+                const tier = resolveVerificationTier({
+                  verified_source: verification[toilet.id]?.verified_source,
+                  verified_at: toilet.verified_at,
+                  confirmation_count: toilet.confirmation_count,
+                  last_confirmed_at: toilet.last_confirmed_at,
+                });
+                const detailHref =
+                  `/toilets/${city}/${toilet.id}-${slugifyToiletName(toilet.name)}`;
+                return (
+                  <div key={toilet.id} className="card">
+                    <div className="flex items-start justify-between mb-3 gap-2">
+                      <Link
+                        href={detailHref}
+                        className="font-bold text-navy-800 hover:text-mint-600 transition-colors"
+                      >
+                        {toilet.name}
+                      </Link>
+                      {toilet.average_rating && (
+                        <div className="flex items-center gap-1 text-sm flex-shrink-0">
+                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <span className="font-semibold">{toilet.average_rating.toFixed(1)}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mb-3">{toilet.address}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {toilet.fee === 'no' && (
-                    <span className="inline-flex items-center gap-1 bg-mint-100 text-mint-700 text-xs px-2 py-1 rounded-full">
-                      <Coins className="w-3 h-3" /> Free
-                    </span>
-                  )}
-                  {toilet.wheelchair === 'yes' && (
-                    <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
-                      <Accessibility className="w-3 h-3" /> Accessible
-                    </span>
-                  )}
-                  {toilet.baby_changing === 'yes' && (
-                    <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">
-                      <Baby className="w-3 h-3" /> Baby
-                    </span>
-                  )}
-                </div>
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-mint-600 text-sm font-semibold hover:text-mint-700"
-                >
-                  <Navigation className="w-4 h-4" />
-                  Get Directions
-                </a>
-              </div>
-            ))}
-          </div>
+                    {toilet.address && (
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{toilet.address}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {(toilet.fee === 'no' || toilet.fee === 'free') && (
+                        <span className="inline-flex items-center gap-1 bg-mint-100 text-mint-700 text-xs px-2 py-1 rounded-full">
+                          <Coins className="w-3 h-3" /> Free
+                        </span>
+                      )}
+                      {toilet.wheelchair === 'yes' && (
+                        <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                          <Accessibility className="w-3 h-3" /> Accessible
+                        </span>
+                      )}
+                      {toilet.baby_changing === 'yes' && (
+                        <span className="inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">
+                          <Baby className="w-3 h-3" /> Baby
+                        </span>
+                      )}
+                      <VerificationBadge tier={tier} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Link
+                        href={detailHref}
+                        className="inline-flex items-center gap-1 text-navy-600 text-sm font-semibold hover:text-navy-700"
+                      >
+                        View details
+                        <ChevronRight className="w-4 h-4" />
+                      </Link>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-track-directions=""
+                        data-toilet-id={toilet.id}
+                        data-toilet-name={toilet.name}
+                        data-directions-source="city_page"
+                        className="inline-flex items-center gap-1 text-mint-600 text-sm font-semibold hover:text-mint-700"
+                      >
+                        <Navigation className="w-4 h-4" />
+                        Directions
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -324,7 +419,7 @@ export default async function CityPage({ params }: Props) {
                   latitude: toilet.latitude,
                   longitude: toilet.longitude,
                 },
-                isAccessibleForFree: toilet.fee === 'no',
+                isAccessibleForFree: toilet.fee === 'no' || toilet.fee === 'free',
                 amenityFeature: [
                   ...(toilet.wheelchair === 'yes' ? [{ '@type': 'LocationFeatureSpecification', name: 'Wheelchair Accessible', value: true }] : []),
                   ...(toilet.baby_changing === 'yes' ? [{ '@type': 'LocationFeatureSpecification', name: 'Baby Changing Facility', value: true }] : []),

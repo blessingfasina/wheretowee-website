@@ -15,6 +15,11 @@ const footerLinks = {
     { name: 'Press Kit', href: '/press' },
     { name: 'Contact', href: '/contact' },
   ],
+  guides: [
+    { name: 'RADAR Key Guide', href: '/radar-key' },
+    { name: 'Toilet Tips', href: '/toilet-tips' },
+    { name: 'Accessibility', href: '/accessibility' },
+  ],
   legal: [
     { name: 'Privacy Policy', href: '/privacy' },
     { name: 'Terms of Service', href: '/terms' },
@@ -42,7 +47,7 @@ export default function Footer() {
     <footer className="bg-navy-800 text-white">
       {/* Main Footer */}
       <div className="container-custom py-12 md:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
@@ -80,6 +85,23 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-4">Company</h3>
             <ul className="space-y-2">
               {footerLinks.company.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    href={link.href}
+                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Guides Links */}
+          <div>
+            <h3 className="font-semibold text-white mb-4">Guides</h3>
+            <ul className="space-y-2">
+              {footerLinks.guides.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}

@@ -38,6 +38,147 @@ export interface Toilet {
   payment_details?: string | null;
   verified_at?: string | null;
   source?: string | null;         // V3: 'v1', 'v2', or 'merged'
+
+  // ---- New trust-signal & accessibility fields (May 2026 migration) ----
+  // These mirror the Dart `Toilet` model in lib/models/toilet.dart so
+  // the web and app render the same UI surfaces. They are all
+  // nullable: older rows pre-migration won't have them populated.
+
+  // A3 — Optional accessibility metadata.
+  hoist?: string | null;             // 'yes' | 'no' | 'unknown' (Changing Places)
+  adult_changing?: string | null;    // adult changing bench
+  gender_neutral?: string | null;
+  emergency_access?: string | null;  // emergency cord, etc.
+
+  // A1 — Trust source. Used by `get_toilet_verification` RPC and
+  // displayed as the "Council verified" / "Community verified" /
+  // "Recently confirmed" badge.
+  verified_source?: string | null;   // 'council' | 'partner' | etc.
+
+  // A2 + B1 — Cached confirmation stats (also returned via dedicated
+  // RPCs but exposed on the row so the city listing card can summarise
+  // without a per-toilet round-trip).
+  confirmation_count?: number | null;
+  not_found_count?: number | null;
+  last_confirmed_at?: string | null;
+}
+
+/// Trust tier surfaced on a toilet card / detail page. Mirrors the
+/// `VerificationTier` enum in the Flutter app. Derived client-side
+/// from `verified_source`, `verified_at`, `confirmation_count`, and
+/// `last_confirmed_at` so the server RPC stays lightweight.
+export type VerificationTier =
+  | 'council_verified'
+  | 'community_verified'
+  | 'recently_confirmed'
+  | 'unverified';
+
+/// Raw row returned by `get_toilet_verification` (toilet_id +
+/// verified_source). Everything else is derived from the toilet row
+/// itself via [resolveVerificationTier].
+export interface ToiletVerificationRow {
+  toilet_id: number;
+  verified_source: string | null;
+}
+
+/// Raw row returned by `get_toilet_confidence`. The Dart model
+/// resolves a categorical level from this — see [confidenceLevelFor].
+export interface ToiletConfidenceRow {
+  toilet_id: number;
+  confidence_score: number;
+  confidence_label: string; // 'high' | 'good' | 'moderate' | 'low' | 'very_low'
+}
+
+/// Raw row returned by `get_toilet_accessibility`.
+export interface ToiletAccessibilityRow {
+  toilet_id: number;
+  hoist: string;
+  adult_changing: string;
+  gender_neutral: string;
+  emergency_access: string;
+}
+
+export type ConfidenceLevel = 'high' | 'good' | 'moderate' | 'low' | 'very_low';
+
+/// Derive a verification tier from the verified_source column + the
+/// community-confirmation columns on a toilet row. Mirrors the
+/// `Toilet.verificationTier` getter in `lib/models/toilet.dart`.
+export function resolveVerificationTier(t: {
+  verified_source?: string | null;
+  verified_at?: string | null;
+  confirmation_count?: number | null;
+  last_confirmed_at?: string | null;
+}): VerificationTier {
+  if (
+    t.verified_source === 'council' ||
+    t.verified_source === 'official' ||
+    t.verified_source === 'partner'
+  ) {
+    return 'council_verified';
+  }
+  if (t.verified_at != null || (t.confirmation_count ?? 0) >= 3) {
+    return 'community_verified';
+  }
+  if (t.last_confirmed_at) {
+    const ageDays = (Date.now() - new Date(t.last_confirmed_at).getTime()) /
+      (1000 * 60 * 60 * 24);
+    if (ageDays <= 30) return 'recently_confirmed';
+  }
+  return 'unverified';
+}
+
+/// Mirror of `Toilet.hasConfidenceSignals`. Used to decide whether to
+/// render the confidence card or the "Help us verify this loo" prompt.
+export function hasConfidenceSignals(t: {
+  verified_source?: string | null;
+  verified_at?: string | null;
+  confirmation_count?: number | null;
+  not_found_count?: number | null;
+  rating_count?: number | null;
+}): boolean {
+  if (
+    t.verified_source === 'council' ||
+    t.verified_source === 'partner' ||
+    t.verified_source === 'official'
+  ) return true;
+  if (t.verified_at) return true;
+  if ((t.confirmation_count ?? 0) > 0) return true;
+  if ((t.not_found_count ?? 0) > 0) return true;
+  if ((t.rating_count ?? 0) > 0) return true;
+  return false;
+}
+
+/// Mirror of `Toilet.needsReconfirmation`.
+export function needsReconfirmation(t: {
+  verified_source?: string | null;
+  verified_at?: string | null;
+  confirmation_count?: number | null;
+  last_confirmed_at?: string | null;
+}): boolean {
+  if (resolveVerificationTier(t) === 'council_verified') return false;
+  if (!t.last_confirmed_at) return false;
+  const ageDays = (Date.now() - new Date(t.last_confirmed_at).getTime()) /
+    (1000 * 60 * 60 * 24);
+  return ageDays > 90;
+}
+
+/// Resolve a confidence level from either a server-provided label or
+/// the numeric score. Matches the Dart `ConfidenceLevel.fromCode/Score`.
+export function confidenceLevelFor(
+  label: string | null,
+  score: number,
+): ConfidenceLevel {
+  if (label) {
+    const code = label.toLowerCase().replace(/[\s-]/g, '_');
+    if (['high', 'good', 'moderate', 'low', 'very_low'].includes(code)) {
+      return code as ConfidenceLevel;
+    }
+  }
+  if (score >= 80) return 'high';
+  if (score >= 60) return 'good';
+  if (score >= 40) return 'moderate';
+  if (score >= 20) return 'low';
+  return 'very_low';
 }
 
 // Cache for active table name (to avoid repeated DB calls)
@@ -182,6 +323,150 @@ export async function getToiletById(id: number): Promise<Toilet | null> {
   }
 
   return data;
+}
+
+/// Batch-fetch the verification, confidence, and accessibility
+/// enrichment rows for a set of toilet ids. All three RPCs are issued
+/// in parallel and any individual failure (e.g. RPC not deployed yet)
+/// soft-fails to an empty map so the rest of the page still renders.
+export async function getToiletEnrichment(
+  toiletIds: number[],
+): Promise<{
+  verification: Record<number, ToiletVerificationRow>;
+  confidence: Record<number, ToiletConfidenceRow>;
+  accessibility: Record<number, ToiletAccessibilityRow>;
+}> {
+  if (toiletIds.length === 0) {
+    return { verification: {}, confidence: {}, accessibility: {} };
+  }
+
+  const empty = { verification: {}, confidence: {}, accessibility: {} };
+  try {
+    const [verificationRes, confidenceRes, accessibilityRes] = await Promise.all([
+      supabase.rpc('get_toilet_verification', { p_toilet_ids: toiletIds }),
+      supabase.rpc('get_toilet_confidence',   { p_toilet_ids: toiletIds }),
+      supabase.rpc('get_toilet_accessibility', { p_toilet_ids: toiletIds }),
+    ]);
+
+    const verification: Record<number, ToiletVerificationRow> = {};
+    for (const row of (verificationRes.data ?? []) as ToiletVerificationRow[]) {
+      verification[row.toilet_id] = row;
+    }
+    const confidence: Record<number, ToiletConfidenceRow> = {};
+    for (const row of (confidenceRes.data ?? []) as ToiletConfidenceRow[]) {
+      confidence[row.toilet_id] = row;
+    }
+    const accessibility: Record<number, ToiletAccessibilityRow> = {};
+    for (const row of (accessibilityRes.data ?? []) as ToiletAccessibilityRow[]) {
+      accessibility[row.toilet_id] = row;
+    }
+    return { verification, confidence, accessibility };
+  } catch (e) {
+    console.error('getToiletEnrichment failed:', e);
+    return empty;
+  }
+}
+
+/// Light-weight pagination helper for the sitemap and any future
+/// admin pages. Returns just the columns needed to build a URL and
+/// fall back to a freshness signal.
+export async function getToiletSitemapPage(
+  offset: number,
+  limit: number,
+): Promise<Array<{
+  id: number;
+  name: string | null;
+  address: string | null;
+  updated_at: string | null;
+}>> {
+  const tableName = await getActiveToiletTable();
+  const { data, error } = await supabase
+    .from(tableName)
+    .select('id, name, address, updated_at, created_at')
+    .or('status.eq.active,status.eq.approved')
+    .order('id', { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error('getToiletSitemapPage error:', error);
+    return [];
+  }
+  // Some rows pre-date the `updated_at` column — fall back to
+  // `created_at` so the sitemap still has a usable lastmod date.
+  return (data ?? []).map((row: {
+    id: number;
+    name: string | null;
+    address: string | null;
+    updated_at?: string | null;
+    created_at?: string | null;
+  }) => ({
+    id: row.id,
+    name: row.name,
+    address: row.address,
+    updated_at: row.updated_at ?? row.created_at ?? null,
+  }));
+}
+
+/// City slugs we currently have first-class landing pages for. Used by
+/// `cityFromAddress` when resolving a clean URL for a toilet detail
+/// page. Order matters slightly — multi-word slugs come first so we
+/// match the longest token before falling back to single words.
+export const SUPPORTED_CITY_SLUGS: ReadonlyArray<string> = [
+  'milton-keynes',
+  'london',
+  'birmingham',
+  'manchester',
+  'leeds',
+  'glasgow',
+  'liverpool',
+  'bristol',
+  'sheffield',
+  'edinburgh',
+  'leicester',
+  'coventry',
+  'bradford',
+  'cardiff',
+  'belfast',
+  'nottingham',
+  'newcastle',
+  'brighton',
+  'southampton',
+  'portsmouth',
+  'oxford',
+  'cambridge',
+  'york',
+  'bath',
+  'bournemouth',
+  'reading',
+  'exeter',
+  'aberdeen',
+  'dundee',
+  'swansea',
+];
+
+/// Best-effort match of an address string to one of our supported
+/// city slugs. Used to build canonical `/toilets/[city]/[id]` URLs.
+/// Returns null when no supported city is named in the address.
+export function cityFromAddress(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const haystack = address.toLowerCase();
+  for (const slug of SUPPORTED_CITY_SLUGS) {
+    const needle = slug.replace(/-/g, ' ');
+    if (haystack.includes(needle)) return slug;
+  }
+  return null;
+}
+
+/// Build a URL-friendly slug from a toilet name. Falls back to "loo"
+/// when the name is missing so we never produce `/-12345` style URLs.
+export function slugifyToiletName(name: string | null | undefined): string {
+  if (!name) return 'loo';
+  return name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'loo';
 }
 
 export async function getToiletStats(): Promise<{
