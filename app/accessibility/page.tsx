@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 
 export const metadata: Metadata = {
   title: 'Accessibility Statement',
@@ -114,6 +115,7 @@ export default function AccessibilityPage() {
           </div>
         </div>
       </div>
+      <BreadcrumbJsonLd trail={[{ name: 'Accessibility', url: 'https://wheretowee.uk/accessibility' }]} />
     </div>
   );
 }

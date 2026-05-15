@@ -39,6 +39,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // High-intent SEO content pages (May 2026 launch).
     { route: '/radar-key', priority: 0.8, changeFreq: 'monthly' as const },
     { route: '/toilet-tips', priority: 0.8, changeFreq: 'monthly' as const },
+    // Intent-based aggregation pages (May 2026 SEO push).
+    { route: '/free-public-toilets', priority: 0.9, changeFreq: 'weekly' as const },
+    { route: '/accessible-toilets-uk', priority: 0.9, changeFreq: 'weekly' as const },
+    { route: '/changing-places-uk', priority: 0.9, changeFreq: 'weekly' as const },
+    { route: '/baby-changing-near-me', priority: 0.9, changeFreq: 'weekly' as const },
+    { route: '/radar-key-toilets-uk', priority: 0.9, changeFreq: 'weekly' as const },
     { route: '/privacy', priority: 0.3, changeFreq: 'yearly' as const },
     { route: '/terms', priority: 0.3, changeFreq: 'yearly' as const },
     { route: '/accessibility', priority: 0.4, changeFreq: 'yearly' as const },

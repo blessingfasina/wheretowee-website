@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ChevronDown } from 'lucide-react';
+import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 
 export const metadata: Metadata = {
   title: 'Public Toilets UK FAQ - RADAR Keys, Baby Change & More',
@@ -177,6 +178,8 @@ export default function FAQPage() {
           </div>
         </div>
       </section>
+
+      <BreadcrumbJsonLd trail={[{ name: 'FAQ', url: 'https://wheretowee.uk/faq' }]} />
 
       {/* Schema.org FAQ Markup */}
       <script

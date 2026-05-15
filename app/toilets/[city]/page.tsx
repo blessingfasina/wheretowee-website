@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { MapPin, Star, Accessibility, Baby, Coins, Navigation, ChevronRight, ShieldCheck, BadgeCheck, Clock } from 'lucide-react';
+import { MapPin, Star, Accessibility, Baby, Coins, Navigation, ChevronRight, ShieldCheck, BadgeCheck, Clock, Key, Trophy, Building2, HelpCircle } from 'lucide-react';
 import {
   supabase,
   getActiveToiletTable,
@@ -11,6 +11,7 @@ import {
   type Toilet,
   type VerificationTier,
 } from '@/lib/supabase';
+import { CITIES, type CityInfo } from '@/lib/cities';
 
 // Revalidate the city pages every hour. New toilets / freshly
 // confirmed status changes show up without a redeploy, but we still
@@ -162,6 +163,35 @@ function VerificationBadge({ tier }: { tier: VerificationTier }) {
   );
 }
 
+/// Great-circle (haversine) distance between two lat/lng pairs in km.
+/// Plenty accurate for the city-proximity use case here.
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const x =
+    sinDLat * sinDLat +
+    Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+}
+
+/// Return the `n` supported cities closest to the given anchor.
+/// Used for the "Nearby cities" cross-link block on the city page.
+function nearestCities(
+  anchor: { lat: number; lng: number },
+  n: number,
+): Array<CityInfo & { distanceKm: number }> {
+  return CITIES.map((c) => ({ ...c, distanceKm: haversineKm(anchor, c) }))
+    .sort((a, b) => a.distanceKm - b.distanceKm)
+    .slice(0, n + 1) // +1 to leave room for filtering out the current city
+    .map((c) => ({ slug: c.slug, fullName: c.fullName, lat: c.lat, lng: c.lng, distanceKm: c.distanceKm }));
+}
+
 export default async function CityPage({ params }: Props) {
   const { city } = await params;
   const cityInfo = cityCoordinates[city];
@@ -183,6 +213,44 @@ export default async function CityPage({ params }: Props) {
   const accessibleCount = toilets.filter((t) => t.wheelchair === 'yes').length;
   const babyCount = toilets.filter((t) => t.baby_changing === 'yes').length;
   const freeCount = toilets.filter((t) => t.fee === 'no' || t.fee === 'free').length;
+  const radarCount = toilets.filter((t) => t.radar_key === 'yes').length;
+  const changingPlacesCount = toilets.filter((t) => t.hoist === 'yes').length;
+
+  // Top 3 rated toilets for the highlight section — only show when
+  // we have at least one rating to avoid surfacing random unrated rows.
+  const topRated = toilets
+    .filter((t) => t.average_rating != null && (t.rating_count ?? 0) >= 1)
+    .sort((a, b) => (b.average_rating ?? 0) - (a.average_rating ?? 0))
+    .slice(0, 3);
+
+  // Nearest 6 supported cities (by great-circle distance) — for the
+  // "Nearby cities" cross-link block. Excludes the current city.
+  const nearby = nearestCities(cityInfo, 6).filter((c) => c.slug !== city);
+
+  // Per-city FAQ — parameterised so we don't duplicate copy across
+  // 30 city pages. Emitted as FAQPage JSON-LD for rich results.
+  const cityFaq: Array<{ q: string; a: string }> = [
+    {
+      q: `Where can I find a public toilet in ${cityInfo.fullName}?`,
+      a: `${cityInfo.fullName} has ${toilets.length || 'many'} public toilets in our database — across shopping centres, train stations, council-run public conveniences, libraries, museums and supermarkets. Use the map at the top of this page or download the Where To Wee app to find the nearest one to you in seconds.`,
+    },
+    {
+      q: `Are there free public toilets in ${cityInfo.fullName}?`,
+      a: `Yes — ${freeCount > 0 ? `we list at least ${freeCount} free public toilets in ${cityInfo.fullName}` : `most council-run public conveniences in ${cityInfo.fullName} are free`}, plus the toilets in libraries, free museums, hospitals and most supermarkets. See our Free Public Toilets page for the full UK directory.`,
+    },
+    {
+      q: `Are there accessible toilets in ${cityInfo.fullName}?`,
+      a: `${accessibleCount > 0 ? `We've listed ${accessibleCount} wheelchair-accessible toilets in ${cityInfo.fullName}` : `Most major venues in ${cityInfo.fullName} have wheelchair-accessible toilets`}, with grab rails and step-free access. Many are RADAR-key controlled — see our RADAR Key guide for details${radarCount > 0 ? `; we currently list ${radarCount} RADAR-key locations in ${cityInfo.fullName}` : ''}.`,
+    },
+    {
+      q: `Where can I find baby changing facilities in ${cityInfo.fullName}?`,
+      a: `${babyCount > 0 ? `${babyCount} of our ${cityInfo.fullName} listings have baby changing facilities` : `Most shopping centres, big supermarkets and department stores in ${cityInfo.fullName} have baby changing facilities`}. Many newer venues also have baby change in men's toilets or dedicated family rooms.`,
+    },
+    {
+      q: `How accurate is the toilet data for ${cityInfo.fullName}?`,
+      a: `Every listing carries a verification badge — "Council verified" means it was imported from a local authority or trusted partner, "Community verified" means three or more users have confirmed it, and "Recently confirmed" means it was checked in the last 30 days. We also surface a 0-100 confidence score on each detail page so you know how trustworthy the info is.`,
+    },
+  ];
 
   return (
     <>
@@ -376,6 +444,215 @@ export default async function CityPage({ params }: Props) {
           </div>
         </div>
       </section>
+
+      {/* Find by need — internal links to the 5 category landing pages */}
+      <section className="section">
+        <div className="container-custom max-w-5xl">
+          <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-2">
+            Find what you need in {cityInfo.fullName}
+          </h2>
+          <p className="text-gray-600 mb-6 max-w-2xl">
+            Looking for a specific type of toilet? Each category page lists every matching
+            facility across the UK, with one-tap directions and accessibility info.
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Link
+              href="/free-public-toilets"
+              className="card hover:shadow-md transition-shadow group border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Coins className="w-6 h-6 text-mint-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-navy-800 group-hover:text-navy-900">Free public toilets</h3>
+                  <p className="text-sm text-gray-600">
+                    {freeCount > 0 ? `${freeCount} in ${cityInfo.fullName}` : 'No-fee facilities across the UK'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+              </div>
+            </Link>
+            <Link
+              href="/accessible-toilets-uk"
+              className="card hover:shadow-md transition-shadow group border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Accessibility className="w-6 h-6 text-blue-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-navy-800 group-hover:text-navy-900">Accessible toilets</h3>
+                  <p className="text-sm text-gray-600">
+                    {accessibleCount > 0 ? `${accessibleCount} wheelchair-accessible in ${cityInfo.fullName}` : 'Wheelchair access across the UK'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+              </div>
+            </Link>
+            <Link
+              href="/changing-places-uk"
+              className="card hover:shadow-md transition-shadow group border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Accessibility className="w-6 h-6 text-purple-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-navy-800 group-hover:text-navy-900">Changing Places</h3>
+                  <p className="text-sm text-gray-600">
+                    {changingPlacesCount > 0 ? `${changingPlacesCount} hoists in ${cityInfo.fullName}` : 'Hoists & adult changing benches'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+              </div>
+            </Link>
+            <Link
+              href="/baby-changing-near-me"
+              className="card hover:shadow-md transition-shadow group border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Baby className="w-6 h-6 text-orange-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-navy-800 group-hover:text-navy-900">Baby changing</h3>
+                  <p className="text-sm text-gray-600">
+                    {babyCount > 0 ? `${babyCount} facilities in ${cityInfo.fullName}` : 'Baby change tables across the UK'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+              </div>
+            </Link>
+            <Link
+              href="/radar-key-toilets-uk"
+              className="card hover:shadow-md transition-shadow group border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Key className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-navy-800 group-hover:text-navy-900">RADAR key toilets</h3>
+                  <p className="text-sm text-gray-600">
+                    {radarCount > 0 ? `${radarCount} in ${cityInfo.fullName}` : 'National Key Scheme locations'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+              </div>
+            </Link>
+            <Link
+              href="/toilet-tips"
+              className="card hover:shadow-md transition-shadow group border border-gray-100"
+            >
+              <div className="flex items-center gap-3">
+                <Building2 className="w-6 h-6 text-navy-600 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-navy-800 group-hover:text-navy-900">UK toilet tips</h3>
+                  <p className="text-sm text-gray-600">Motorway, train, shopping centre advice</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Top-rated highlights */}
+      {topRated.length > 0 && (
+        <section className="section bg-gray-50">
+          <div className="container-custom max-w-5xl">
+            <div className="flex items-center gap-3 mb-6">
+              <Trophy className="w-6 h-6 text-yellow-500" />
+              <h2 className="text-2xl md:text-3xl font-bold text-navy-800">
+                Highest-rated toilets in {cityInfo.fullName}
+              </h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              {topRated.map((t, idx) => (
+                <div key={t.id} className="card border border-gray-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full w-6 h-6 inline-flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      <span className="font-semibold">{t.average_rating?.toFixed(1)}</span>
+                      <span className="text-gray-500">({t.rating_count})</span>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/toilets/${city}/${t.id}-${slugifyToiletName(t.name)}`}
+                    className="font-bold text-navy-800 hover:text-mint-600 line-clamp-2"
+                  >
+                    {t.name}
+                  </Link>
+                  {t.address && (
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{t.address}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Nearby cities — internal-link goldmine */}
+      {nearby.length > 0 && (
+        <section className="section">
+          <div className="container-custom max-w-5xl">
+            <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-2">
+              Nearby UK cities
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Travelling beyond {cityInfo.fullName}? Browse toilets in nearby cities.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {nearby.slice(0, 6).map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/toilets/${c.slug}`}
+                  className="card text-center hover:shadow-md hover:border-navy-300 transition-all group border border-gray-100"
+                >
+                  <h3 className="font-bold text-navy-800 group-hover:text-navy-900 text-sm md:text-base">
+                    {c.fullName}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">{Math.round(c.distanceKm)} km</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Per-city FAQ */}
+      <section className="section bg-gray-50">
+        <div className="container-custom max-w-3xl">
+          <div className="flex items-center gap-3 mb-6">
+            <HelpCircle className="w-6 h-6 text-navy-600" />
+            <h2 className="text-2xl md:text-3xl font-bold text-navy-800">
+              {cityInfo.fullName} toilet FAQ
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {cityFaq.map((f) => (
+              <details key={f.q} className="card group border border-gray-100">
+                <summary className="cursor-pointer font-bold text-navy-800 list-none flex items-center justify-between gap-3">
+                  <span>{f.q}</span>
+                  <ChevronRight className="w-5 h-5 text-gray-400 group-open:rotate-90 transition-transform flex-shrink-0" />
+                </summary>
+                <p className="mt-3 text-gray-700 leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQPage JSON-LD for the per-city FAQ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: cityFaq.map((f) => ({
+              '@type': 'Question',
+              name: f.q,
+              acceptedAnswer: { '@type': 'Answer', text: f.a },
+            })),
+          }),
+        }}
+      />
 
       {/* CTA */}
       <section className="section bg-navy-600 text-white">

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
+import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 
 export const metadata: Metadata = {
   title: 'Toilets Near Me NOW - Interactive Map | Find in Seconds',
@@ -128,6 +129,8 @@ export default function MapPage() {
           </div>
         </div>
       </div>
+
+      <BreadcrumbJsonLd trail={[{ name: 'Map', url: 'https://wheretowee.uk/map' }]} />
     </div>
   );
 }

@@ -20,6 +20,13 @@ const footerLinks = {
     { name: 'Toilet Tips', href: '/toilet-tips' },
     { name: 'Accessibility', href: '/accessibility' },
   ],
+  find: [
+    { name: 'Free Public Toilets', href: '/free-public-toilets' },
+    { name: 'Accessible Toilets UK', href: '/accessible-toilets-uk' },
+    { name: 'Changing Places UK', href: '/changing-places-uk' },
+    { name: 'Baby Changing Near Me', href: '/baby-changing-near-me' },
+    { name: 'RADAR Key Toilets', href: '/radar-key-toilets-uk' },
+  ],
   legal: [
     { name: 'Privacy Policy', href: '/privacy' },
     { name: 'Terms of Service', href: '/terms' },
@@ -47,7 +54,7 @@ export default function Footer() {
     <footer className="bg-navy-800 text-white">
       {/* Main Footer */}
       <div className="container-custom py-12 md:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
@@ -119,6 +126,23 @@ export default function Footer() {
             <h3 className="font-semibold text-white mb-4">Legal</h3>
             <ul className="space-y-2">
               {footerLinks.legal.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    href={link.href}
+                    className="text-gray-400 hover:text-white transition-colors text-sm"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Find a Toilet — intent-based category pages */}
+          <div>
+            <h3 className="font-semibold text-white mb-4">Find a Toilet</h3>
+            <ul className="space-y-2">
+              {footerLinks.find.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}

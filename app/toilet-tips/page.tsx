@@ -355,6 +355,34 @@ export default function ToiletTipsPage() {
           }),
         }}
       />
+      {/*
+        HowTo schema per category. Google's classic HowTo rich result
+        was retired for most queries in late-2023, but the markup still
+        contributes to semantic understanding and powers some answer-
+        box treatments — and it costs us nothing to keep emitting it.
+      */}
+      {CATEGORIES.map((cat) => (
+        <script
+          key={cat.id}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'HowTo',
+              name: `How to find a toilet — ${cat.title.toLowerCase()}`,
+              description: cat.subtitle,
+              totalTime: 'PT5M',
+              step: cat.tips.map((t, i) => ({
+                '@type': 'HowToStep',
+                position: i + 1,
+                name: t.title,
+                text: t.body,
+                url: `https://wheretowee.uk/toilet-tips#${cat.id}`,
+              })),
+            }),
+          }}
+        />
+      ))}
     </>
   );
 }

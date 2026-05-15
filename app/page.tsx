@@ -23,6 +23,32 @@ export const metadata: Metadata = {
   },
 };
 
+// Homepage FAQs — kept tight (5 questions) so they don't dominate
+// the visual flow, but each is a high-volume real-user search query.
+// Emitted as FAQPage JSON-LD too for rich-result eligibility.
+const HOMEPAGE_FAQS = [
+  {
+    q: 'How do I find a public toilet near me?',
+    a: 'Open the Where To Wee app or visit wheretowee.uk/map and allow location access. We\'ll show you the nearest public toilets sorted by distance, with accessibility info, ratings, opening hours and one-tap directions. The web map works on any device — no sign-up needed.',
+  },
+  {
+    q: 'Is Where To Wee free to use?',
+    a: 'Yes — completely free. Both the mobile app and the web map are free, with no subscriptions, ads or premium features. We believe everyone deserves easy access to clean public toilets regardless of budget.',
+  },
+  {
+    q: 'Do you list accessible and Changing Places toilets?',
+    a: 'Yes. We tag every wheelchair-accessible toilet, every RADAR-key location, and every Changing Places facility (with hoist and adult-changing bench) that our community has confirmed. See our dedicated pages for Accessible Toilets, Changing Places, and the RADAR Key guide.',
+  },
+  {
+    q: 'Where do the 18,000+ toilet listings come from?',
+    a: 'Our database is built from open data, partner councils, and the Where To Wee community. Every listing carries a verification badge — "Council verified", "Community verified", or "Recently confirmed" — plus a 0-100 confidence score so you know how trustworthy the info is.',
+  },
+  {
+    q: 'Do I need to create an account?',
+    a: 'No. You can find toilets, view details, rate, confirm and report — all anonymously. We never ask for your name, email or precise location history. An anonymous device id ties your contributions to a single profile without identifying you.',
+  },
+];
+
 // Stats - update these with real numbers
 const stats = [
   { label: 'Toilets Listed', value: '18,000+' },
@@ -307,6 +333,51 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Homepage FAQ — high-volume real-user queries */}
+      <section className="section bg-gray-50">
+        <div className="container-custom max-w-3xl">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-bold text-navy-800 mb-3">
+              Frequently asked questions
+            </h2>
+            <p className="text-gray-600">The basics — quick answers to the questions we hear most.</p>
+          </div>
+          <div className="space-y-3">
+            {HOMEPAGE_FAQS.map((f) => (
+              <details key={f.q} className="card group border border-gray-100">
+                <summary className="cursor-pointer font-bold text-navy-800 list-none flex items-center justify-between gap-3">
+                  <span>{f.q}</span>
+                  <ChevronRight className="w-5 h-5 text-gray-400 group-open:rotate-90 transition-transform flex-shrink-0" />
+                </summary>
+                <p className="mt-3 text-gray-700 leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/faq" className="btn btn-secondary">
+              See full FAQ
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQPage JSON-LD for the homepage FAQ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
+            mainEntity: HOMEPAGE_FAQS.map((f) => ({
+              '@type': 'Question',
+              name: f.q,
+              acceptedAnswer: { '@type': 'Answer', text: f.a },
+            })),
+          }),
+        }}
+      />
 
       {/* CTA Section */}
       <section className="section gradient-hero text-white">

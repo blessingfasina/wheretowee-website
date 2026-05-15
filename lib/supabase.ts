@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { CITIES, type CityInfo } from './cities';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -455,6 +456,164 @@ export function cityFromAddress(address: string | null | undefined): string | nu
     if (haystack.includes(needle)) return slug;
   }
   return null;
+}
+
+/// Kind of "intent" landing page. Each variant maps to a different
+/// Supabase predicate via [applyCategoryFilter]. Adding a new
+/// category is a 2-step change: extend the union here and add a case
+/// to the switch below.
+export type CategoryKind =
+  | 'free'
+  | 'accessible'
+  | 'changing_places'
+  | 'baby_changing'
+  | 'radar_key';
+
+/// Pre-baked SEO metadata for each category. Centralised so the
+/// page component, sitemap, and footer can all stay in sync.
+export const CATEGORY_META: Record<
+  CategoryKind,
+  { slug: string; title: string; shortLabel: string }
+> = {
+  free: {
+    slug: 'free-public-toilets',
+    title: 'Free Public Toilets',
+    shortLabel: 'Free toilets',
+  },
+  accessible: {
+    slug: 'accessible-toilets-uk',
+    title: 'Accessible Toilets UK',
+    shortLabel: 'Accessible toilets',
+  },
+  changing_places: {
+    slug: 'changing-places-uk',
+    title: 'Changing Places Toilets UK',
+    shortLabel: 'Changing Places',
+  },
+  baby_changing: {
+    slug: 'baby-changing-near-me',
+    title: 'Baby Changing Facilities',
+    shortLabel: 'Baby changing',
+  },
+  radar_key: {
+    slug: 'radar-key-toilets-uk',
+    title: 'RADAR Key Toilets',
+    shortLabel: 'RADAR key toilets',
+  },
+};
+
+// Internal: applies the appropriate Supabase `eq` / `or` filter for
+// a given category. Keeps the page components free of column-name
+// trivia and avoids drift between the count, by-city and featured
+// queries (they MUST share the exact same filter).
+//
+// `q` is typed loosely because the Supabase JS chainable type is a
+// huge intersection — we only need the chain semantics here.
+type SupaQuery = ReturnType<ReturnType<typeof supabase.from>['select']>;
+function applyCategoryFilter(q: SupaQuery, kind: CategoryKind): SupaQuery {
+  switch (kind) {
+    case 'free':
+      return q.or('fee.eq.no,fee.eq.free');
+    case 'accessible':
+      return q.eq('wheelchair', 'yes');
+    case 'changing_places':
+      return q.eq('hoist', 'yes');
+    case 'baby_changing':
+      return q.eq('baby_changing', 'yes');
+    case 'radar_key':
+      return q.eq('radar_key', 'yes');
+  }
+}
+
+export interface CategoryStats {
+  /** Total matching rows across the active toilet table. */
+  total: number;
+  /**
+   * Per-city counts, sorted desc by `count`. Cities with zero hits
+   * are dropped so the page never renders an empty stat card.
+   */
+  byCity: Array<{ city: CityInfo; count: number }>;
+  /** Up to 8 top-rated examples for the "featured" carousel. */
+  featured: Toilet[];
+}
+
+/**
+ * Aggregate stats for an intent landing page (e.g. "free public
+ * toilets", "accessible toilets"). All sub-queries share the same
+ * category filter, so the numbers are internally consistent.
+ *
+ * Soft-fails: when Supabase is unreachable the page still renders
+ * with `total: 0` / empty lists rather than throwing — important
+ * because these pages are crawled by Googlebot at scale and a 500
+ * during a crawl can de-index us for those keywords.
+ */
+export async function getCategoryStats(kind: CategoryKind): Promise<CategoryStats> {
+  const empty: CategoryStats = { total: 0, byCity: [], featured: [] };
+  try {
+    const tableName = await getActiveToiletTable();
+
+    // Total count using head=true so Postgres doesn't return rows.
+    const totalQuery = applyCategoryFilter(
+      supabase
+        .from(tableName)
+        .select('*', { count: 'exact', head: true })
+        .or('status.eq.active,status.eq.approved'),
+      kind,
+    );
+
+    // Featured: top-rated matching toilets with at least one rating
+    // so we surface real social proof, not random unrated rows.
+    const featuredQuery = applyCategoryFilter(
+      supabase
+        .from(tableName)
+        .select('*')
+        .or('status.eq.active,status.eq.approved')
+        .not('average_rating', 'is', null)
+        .gte('rating_count', 1)
+        .order('average_rating', { ascending: false })
+        .limit(8),
+      kind,
+    );
+
+    // Per-city counts — issued in parallel. Each query is a
+    // head-only count so the round-trips are cheap even with 30+
+    // cities.
+    const cityCountPromises = CITIES.map(async (city): Promise<{ city: CityInfo; count: number }> => {
+      const q = applyCategoryFilter(
+        supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: true })
+          .or('status.eq.active,status.eq.approved')
+          .ilike('address', `%${city.fullName}%`),
+        kind,
+      );
+      const { count, error } = await q;
+      if (error) {
+        console.error(`getCategoryStats(${kind}) city=${city.slug} error:`, error);
+        return { city, count: 0 };
+      }
+      return { city, count: count ?? 0 };
+    });
+
+    const [totalRes, featuredRes, cityResults] = await Promise.all([
+      totalQuery,
+      featuredQuery,
+      Promise.all(cityCountPromises),
+    ]);
+
+    const byCity = cityResults
+      .filter((r) => r.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      total: totalRes.count ?? 0,
+      byCity,
+      featured: ((featuredRes.data as Toilet[] | null) ?? []),
+    };
+  } catch (e) {
+    console.error(`getCategoryStats(${kind}) threw:`, e);
+    return empty;
+  }
 }
 
 /// Build a URL-friendly slug from a toilet name. Falls back to "loo"

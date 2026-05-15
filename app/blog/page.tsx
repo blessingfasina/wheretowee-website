@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Calendar, Clock, ChevronRight, BookOpen } from 'lucide-react';
 import { getAllPosts, getCategories, BlogPost } from '@/lib/blog';
+import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 
 export const metadata: Metadata = {
   title: 'UK Toilet Tips Blog - RADAR Keys, Accessibility & Travel Guides',
@@ -147,6 +148,8 @@ export default async function BlogPage() {
           </div>
         </div>
       </section>
+
+      <BreadcrumbJsonLd trail={[{ name: 'Blog', url: 'https://wheretowee.uk/blog' }]} />
     </>
   );
 }
