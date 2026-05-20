@@ -163,6 +163,67 @@ export function needsReconfirmation(t: {
   return ageDays > 90;
 }
 
+/// "Index-worthy" cutoff in days. Toilets confirmed within this
+/// window are considered fresh enough to deserve their own indexable
+/// page even without ratings or verification. Matches the freshness
+/// threshold used by `resolveVerificationTier` for `recently_confirmed`.
+const INDEXABLE_RECENT_CONFIRM_DAYS = 30;
+
+/**
+ * Decide whether a toilet detail page is worth asking Google to index.
+ *
+ * The site has ~18k toilet rows but only a small fraction carry signals
+ * Google can use to differentiate them (ratings, council verification,
+ * recent community confirmation, or a high-value accessibility flag
+ * like Changing Places / RADAR key). Pushing the entire long tail at
+ * Google leads to "Discovered – currently not indexed" piling up; we
+ * pre-filter here so:
+ *
+ *   - The sitemap only includes URLs we want crawled now.
+ *   - Detail pages that don't yet earn this bar render with
+ *     `<meta name="robots" content="noindex,follow">`. They stay live
+ *     for users (the city pages still link to them), but stop competing
+ *     for crawl budget. As soon as a row earns one of the signals it
+ *     flips to indexable on the next request — no manual flag.
+ */
+export function isIndexWorthyToilet(t: {
+  rating_count?: number | null;
+  verified_source?: string | null;
+  verified_at?: string | null;
+  last_confirmed_at?: string | null;
+  hoist?: string | null;
+  radar_key?: string | null;
+}): boolean {
+  if ((t.rating_count ?? 0) >= 1) return true;
+  if (t.verified_source && t.verified_source.length > 0) return true;
+  if (t.verified_at) return true;
+  if (t.last_confirmed_at) {
+    const ageDays =
+      (Date.now() - new Date(t.last_confirmed_at).getTime()) / (1000 * 60 * 60 * 24);
+    if (ageDays <= INDEXABLE_RECENT_CONFIRM_DAYS) return true;
+  }
+  if (t.hoist === 'yes') return true; // Changing Places: always high-value
+  if (t.radar_key === 'yes') return true; // National Key Scheme: high-value
+  return false;
+}
+
+/// PostgREST `OR` filter string mirroring [isIndexWorthyToilet]. Used by
+/// the slim sitemap query so the filtering happens server-side rather
+/// than streaming 30k rows into Node and discarding 90 % of them.
+function indexWorthyOrFilter(): string {
+  const cutoff = new Date(
+    Date.now() - INDEXABLE_RECENT_CONFIRM_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  return [
+    'rating_count.gte.1',
+    'verified_source.not.is.null',
+    'verified_at.not.is.null',
+    `last_confirmed_at.gte.${cutoff}`,
+    'hoist.eq.yes',
+    'radar_key.eq.yes',
+  ].join(',');
+}
+
 /// Resolve a confidence level from either a server-provided label or
 /// the numeric score. Matches the Dart `ConfidenceLevel.fromCode/Score`.
 export function confidenceLevelFor(
@@ -371,20 +432,36 @@ export async function getToiletEnrichment(
 /// Light-weight pagination helper for the sitemap and any future
 /// admin pages. Returns just the columns needed to build a URL and
 /// fall back to a freshness signal.
+///
+/// By default this only returns rows that pass [isIndexWorthyToilet]
+/// — i.e. the ones we actually want Google to crawl. Pass
+/// `{ onlyIndexable: false }` if a caller (e.g. a future admin page)
+/// genuinely wants the full active catalogue.
 export async function getToiletSitemapPage(
   offset: number,
   limit: number,
+  opts: { onlyIndexable?: boolean } = {},
 ): Promise<Array<{
   id: number;
   name: string | null;
   address: string | null;
   updated_at: string | null;
 }>> {
+  const onlyIndexable = opts.onlyIndexable ?? true;
   const tableName = await getActiveToiletTable();
-  const { data, error } = await supabase
+
+  let query = supabase
     .from(tableName)
     .select('id, name, address, updated_at, created_at')
-    .or('status.eq.active,status.eq.approved')
+    .or('status.eq.active,status.eq.approved');
+
+  if (onlyIndexable) {
+    // Server-side filter — keeps round-trips small even when the table
+    // has 18k+ rows but only a few thousand are index-worthy.
+    query = query.or(indexWorthyOrFilter());
+  }
+
+  const { data, error } = await query
     .order('id', { ascending: true })
     .range(offset, offset + limit - 1);
 

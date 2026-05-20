@@ -26,6 +26,8 @@ import {
   hasConfidenceSignals,
   needsReconfirmation,
   confidenceLevelFor,
+  isIndexWorthyToilet,
+  getNearbyToilets,
   slugifyToiletName,
   cityFromAddress,
   type Toilet,
@@ -97,9 +99,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `Public toilet at ${toilet.address}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`
     : `Public toilet in ${cityName}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`;
 
+  // Robots policy: thin/unverified detail pages are kept reachable
+  // (so users hitting them from city lists or external links still get
+  // a working page) but hidden from Google's index. As soon as the row
+  // earns a signal — a single rating, a council import, a recent
+  // community confirm, or a high-value accessibility flag — the
+  // metadata flips back to indexable on the next request. Search Console
+  // had ~2,100 of our pages stuck in "Discovered – not indexed" before
+  // we added this gate; this is the targeted fix.
+  const indexable = isIndexWorthyToilet(toilet);
+  const robots = indexable
+    ? undefined
+    : {
+        index: false,
+        follow: true,
+        googleBot: { index: false, follow: true },
+      };
+
   return {
     title,
     description,
+    robots,
     openGraph: {
       title,
       description,
@@ -218,6 +238,25 @@ export default async function ToiletDetailPage({ params }: Props) {
     .split('-')
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(' ');
+
+  // Find a handful of nearby toilets to differentiate this page from
+  // every other toilet detail page. Two SEO wins:
+  //   1. Each page now has unique outgoing internal links → directly
+  //      targets "Crawled - currently not indexed" by giving Google a
+  //      reason to consider each URL distinct.
+  //   2. Users genuinely benefit — if this loo is shut they can pivot
+  //      to the next one without bouncing back to the city list.
+  // Fetch a slightly larger set, then strip the current toilet and any
+  // it can't differentiate by a sensible distance, and keep 5.
+  const nearbyToilets = await getNearbyToilets(
+    toilet.latitude,
+    toilet.longitude,
+    1.5, // km radius — tight enough to be genuinely "nearby"
+    20,
+  );
+  const nearbyOthers = nearbyToilets
+    .filter((n) => n.id !== toilet.id)
+    .slice(0, 5);
 
   return (
     <>
@@ -480,6 +519,79 @@ export default async function ToiletDetailPage({ params }: Props) {
           </div>
         </div>
       </section>
+
+      {/* Nearby toilets — auto-differentiates each detail page (unique
+          internal links per URL, helps with "Crawled - not indexed").
+          Only renders when we actually have neighbours to suggest. */}
+      {nearbyOthers.length > 0 && (
+        <section className="section bg-gray-50">
+          <div className="container-custom max-w-5xl">
+            <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-navy-800">
+                  Other toilets nearby
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  Within 1.5 km of {toilet.name} — handy if this one&apos;s shut.
+                </p>
+              </div>
+              <Link
+                href={`/toilets/${city}`}
+                className="text-navy-700 font-semibold hover:text-navy-900 inline-flex items-center gap-1"
+              >
+                All in {cityName}
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {nearbyOthers.map((n) => {
+                const nCity = cityFromAddress(n.address) ?? city;
+                const nHref = `/toilets/${nCity}/${n.id}-${slugifyToiletName(n.name)}`;
+                const tags: string[] = [];
+                if (n.fee === 'no' || n.fee === 'free') tags.push('Free');
+                if (n.wheelchair === 'yes') tags.push('Accessible');
+                if (n.baby_changing === 'yes') tags.push('Baby change');
+                if (n.hoist === 'yes') tags.push('Changing Places');
+                if (n.radar_key === 'yes') tags.push('RADAR key');
+                return (
+                  <Link
+                    key={n.id}
+                    href={nHref}
+                    className="card border border-gray-100 hover:shadow-md hover:border-navy-300 transition-all group"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="font-bold text-navy-800 group-hover:text-mint-600 line-clamp-2">
+                        {n.name}
+                      </h3>
+                      {n.average_rating != null && (
+                        <div className="flex items-center gap-1 text-sm flex-shrink-0">
+                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <span className="font-semibold">{n.average_rating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {n.address && (
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{n.address}</p>
+                    )}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {tags.map((t) => (
+                          <span
+                            key={t}
+                            className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* JSON-LD: PublicToilet + Place + BreadcrumbList */}
       <script

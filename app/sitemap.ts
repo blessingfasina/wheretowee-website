@@ -15,10 +15,19 @@ const cities = [
 ];
 
 // Cap how many individual toilet pages we list in the sitemap.
-// Google's per-file limit is 50,000; we leave headroom and emit only
-// rows we can confidently attribute to one of our supported city
-// landing pages (otherwise the canonical URL would 404).
-const MAX_TOILET_URLS = 30000;
+//
+// We deliberately keep this much lower than Google's 50,000 limit and
+// far below the live row count. Reasoning, learnt the hard way from
+// Search Console:
+//   * A young site has limited crawl budget. Listing every toilet
+//     ever created drowns the high-value pages in a queue of similar
+//     listings → "Discovered – currently not indexed" piles up.
+//   * `getToiletSitemapPage` already applies the
+//     [isIndexWorthyToilet] filter, so this cap is the upper bound on
+//     the indexable set, not on the catalog as a whole.
+// As we accrue ratings + verifications the indexable set grows
+// organically; raise this cap then.
+const MAX_TOILET_URLS = 5000;
 const PAGE_SIZE = 1000;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
