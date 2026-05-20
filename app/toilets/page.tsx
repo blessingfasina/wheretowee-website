@@ -1,15 +1,25 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { MapPin, ChevronRight, Search } from 'lucide-react';
-import { getCities } from '@/lib/supabase';
+import {
+  MapPin,
+  ChevronRight,
+  Coins,
+  Accessibility,
+  Baby,
+  Key,
+  Star,
+  Compass,
+} from 'lucide-react';
+import { getCityDirectoryStats, slugifyToiletName, cityFromAddress } from '@/lib/supabase';
+import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 
 export const metadata: Metadata = {
-  title: 'Public Toilets UK - Every City Covered | Free Directory',
+  title: 'Public Toilets UK — Find Loos in Every Major City',
   description:
-    'Find public toilets in London, Manchester, Birmingham & 500+ UK cities. Free, accessible & baby change filters. Your complete UK toilet directory.',
+    'Browse public toilets across 30+ UK cities — London, Manchester, Edinburgh and more. Free directory with accessibility, baby change and Changing Places filters.',
   openGraph: {
-    title: 'Find Public Toilets by City - Where To Wee',
-    description: 'Browse 18,000+ public toilets across all major UK cities.',
+    title: 'Find Public Toilets by City — Where To Wee',
+    description: 'Browse 18,000+ public toilets across all major UK cities, with real verification and rating data.',
     url: 'https://wheretowee.uk/toilets',
   },
   alternates: {
@@ -17,123 +27,190 @@ export const metadata: Metadata = {
   },
 };
 
-// City data with approximate toilet counts
-const cityData = [
-  { name: 'London', slug: 'london', count: 2500, region: 'Greater London' },
-  { name: 'Birmingham', slug: 'birmingham', count: 450, region: 'West Midlands' },
-  { name: 'Manchester', slug: 'manchester', count: 380, region: 'Greater Manchester' },
-  { name: 'Leeds', slug: 'leeds', count: 320, region: 'West Yorkshire' },
-  { name: 'Glasgow', slug: 'glasgow', count: 290, region: 'Scotland' },
-  { name: 'Liverpool', slug: 'liverpool', count: 260, region: 'Merseyside' },
-  { name: 'Bristol', slug: 'bristol', count: 240, region: 'South West' },
-  { name: 'Sheffield', slug: 'sheffield', count: 220, region: 'South Yorkshire' },
-  { name: 'Edinburgh', slug: 'edinburgh', count: 210, region: 'Scotland' },
-  { name: 'Leicester', slug: 'leicester', count: 180, region: 'East Midlands' },
-  { name: 'Coventry', slug: 'coventry', count: 160, region: 'West Midlands' },
-  { name: 'Bradford', slug: 'bradford', count: 150, region: 'West Yorkshire' },
-  { name: 'Cardiff', slug: 'cardiff', count: 200, region: 'Wales' },
-  { name: 'Belfast', slug: 'belfast', count: 170, region: 'Northern Ireland' },
-  { name: 'Nottingham', slug: 'nottingham', count: 190, region: 'East Midlands' },
-  { name: 'Newcastle', slug: 'newcastle', count: 175, region: 'North East' },
-  { name: 'Brighton', slug: 'brighton', count: 165, region: 'South East' },
-  { name: 'Southampton', slug: 'southampton', count: 145, region: 'South East' },
-  { name: 'Portsmouth', slug: 'portsmouth', count: 140, region: 'South East' },
-  { name: 'Oxford', slug: 'oxford', count: 120, region: 'South East' },
-  { name: 'Cambridge', slug: 'cambridge', count: 110, region: 'East of England' },
-  { name: 'York', slug: 'york', count: 130, region: 'North Yorkshire' },
-  { name: 'Bath', slug: 'bath', count: 95, region: 'South West' },
-  { name: 'Bournemouth', slug: 'bournemouth', count: 125, region: 'South West' },
-  { name: 'Reading', slug: 'reading', count: 115, region: 'South East' },
-  { name: 'Milton Keynes', slug: 'milton-keynes', count: 100, region: 'South East' },
-  { name: 'Exeter', slug: 'exeter', count: 85, region: 'South West' },
-  { name: 'Aberdeen', slug: 'aberdeen', count: 120, region: 'Scotland' },
-  { name: 'Dundee', slug: 'dundee', count: 90, region: 'Scotland' },
-  { name: 'Swansea', slug: 'swansea', count: 95, region: 'Wales' },
+// Revalidate hourly so live counts stay fresh without re-querying on
+// every request.
+export const revalidate = 3600;
+
+/// Category quick-links surfaced at the top of the directory. Mirrors
+/// the header dropdown so a user landing here can find the right
+/// page in one tap rather than hunting in the city list.
+const CATEGORY_LINKS: Array<{
+  href: string;
+  label: string;
+  blurb: string;
+  icon: React.ElementType;
+  cls: string;
+}> = [
+  {
+    href: '/free-public-toilets',
+    label: 'Free public toilets',
+    blurb: 'No fee, no sign-up',
+    icon: Coins,
+    cls: 'bg-mint-100 text-mint-700',
+  },
+  {
+    href: '/accessible-toilets-uk',
+    label: 'Accessible toilets',
+    blurb: 'Wheelchair access + grab rails',
+    icon: Accessibility,
+    cls: 'bg-blue-100 text-blue-700',
+  },
+  {
+    href: '/changing-places-uk',
+    label: 'Changing Places',
+    blurb: 'Hoist + adult-changing bench',
+    icon: Accessibility,
+    cls: 'bg-purple-100 text-purple-700',
+  },
+  {
+    href: '/baby-changing-near-me',
+    label: 'Baby changing',
+    blurb: 'Family rooms + change tables',
+    icon: Baby,
+    cls: 'bg-orange-100 text-orange-700',
+  },
+  {
+    href: '/radar-key-toilets-uk',
+    label: 'RADAR key locations',
+    blurb: 'National Key Scheme toilets',
+    icon: Key,
+    cls: 'bg-indigo-100 text-indigo-700',
+  },
 ];
 
-// Group cities by region
-const regions = cityData.reduce((acc, city) => {
-  if (!acc[city.region]) {
-    acc[city.region] = [];
-  }
-  acc[city.region].push(city);
-  return acc;
-}, {} as Record<string, typeof cityData>);
+/// Loose region grouping used for the directory's "Browse by region"
+/// section. Pinned here rather than on the canonical city list so we
+/// don't pollute the core data model with editorial labels.
+const REGION_BY_SLUG: Record<string, string> = {
+  london: 'Greater London',
+  birmingham: 'West Midlands',
+  coventry: 'West Midlands',
+  manchester: 'Greater Manchester',
+  leeds: 'West Yorkshire',
+  bradford: 'West Yorkshire',
+  glasgow: 'Scotland',
+  edinburgh: 'Scotland',
+  aberdeen: 'Scotland',
+  dundee: 'Scotland',
+  liverpool: 'Merseyside',
+  bristol: 'South West',
+  bath: 'South West',
+  exeter: 'South West',
+  bournemouth: 'South West',
+  sheffield: 'South Yorkshire',
+  leicester: 'East Midlands',
+  nottingham: 'East Midlands',
+  cardiff: 'Wales',
+  swansea: 'Wales',
+  belfast: 'Northern Ireland',
+  newcastle: 'North East',
+  brighton: 'South East',
+  southampton: 'South East',
+  portsmouth: 'South East',
+  oxford: 'South East',
+  reading: 'South East',
+  'milton-keynes': 'South East',
+  cambridge: 'East of England',
+  york: 'North Yorkshire',
+};
 
-export default function ToiletsDirectoryPage() {
-  const totalToilets = cityData.reduce((sum, city) => sum + city.count, 0);
+export default async function ToiletsDirectoryPage() {
+  const { total, byCity, topRated } = await getCityDirectoryStats();
+  const renderTotal = total > 0 ? total.toLocaleString('en-GB') : '18,000+';
+  const cityCount = byCity.length;
+
+  // Group cities by region for the secondary directory section.
+  const grouped = byCity.reduce<Record<string, Array<{ city: typeof byCity[number]['city']; count: number }>>>((acc, item) => {
+    const region = REGION_BY_SLUG[item.city.slug] ?? 'Other UK cities';
+    (acc[region] ||= []).push(item);
+    return acc;
+  }, {});
 
   return (
     <>
       {/* Hero */}
       <section className="bg-navy-600 text-white py-12 md:py-16">
         <div className="container-custom">
+          <nav className="flex items-center gap-2 text-sm text-gray-300 mb-4">
+            <Link href="/" className="hover:text-white">Home</Link>
+            <ChevronRight className="w-4 h-4" />
+            <span>UK city directory</span>
+          </nav>
           <div className="max-w-3xl">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-              Find Public Toilets Across the UK
+              Public toilets across the UK
             </h1>
             <p className="text-lg text-gray-300 mb-6">
-              Browse our directory of {totalToilets.toLocaleString()}+ public toilets in major UK
-              cities and towns. Find accessible facilities, baby changing, and more.
+              Browse our directory of {renderTotal} public toilets in {cityCount > 0 ? cityCount : 30}+
+              UK cities. Each listing carries a verification badge and confidence score so you know
+              what you&apos;re looking at — not a stale data dump.
             </p>
-            <Link href="/map" className="btn btn-mint">
-              <MapPin className="w-5 h-5" />
-              Use Interactive Map
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/map" className="btn btn-mint">
+                <MapPin className="w-5 h-5" />
+                Open the live map
+              </Link>
+              <Link href="/download" className="btn btn-secondary">
+                Download the app
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Quick Stats */}
+      {/* Quick stats — real numbers from Supabase */}
       <section className="py-8 bg-white border-b">
         <div className="container-custom">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl md:text-3xl font-bold text-navy-600">
-                {totalToilets.toLocaleString()}+
+              <div className="text-2xl md:text-3xl font-bold text-navy-600">{renderTotal}</div>
+              <div className="text-gray-600 text-sm">Toilets listed</div>
+            </div>
+            <div>
+              <div className="text-2xl md:text-3xl font-bold text-mint-600">
+                {cityCount > 0 ? cityCount : 30}+
               </div>
-              <div className="text-gray-600 text-sm">Total Toilets</div>
+              <div className="text-gray-600 text-sm">UK cities covered</div>
             </div>
             <div>
-              <div className="text-2xl md:text-3xl font-bold text-navy-600">
-                {cityData.length}+
-              </div>
-              <div className="text-gray-600 text-sm">Cities Covered</div>
+              <div className="text-2xl md:text-3xl font-bold text-orange-600">Free</div>
+              <div className="text-gray-600 text-sm">Web + app, no sign-up</div>
             </div>
             <div>
-              <div className="text-2xl md:text-3xl font-bold text-navy-600">8,000+</div>
-              <div className="text-gray-600 text-sm">Accessible</div>
-            </div>
-            <div>
-              <div className="text-2xl md:text-3xl font-bold text-navy-600">5,000+</div>
-              <div className="text-gray-600 text-sm">Baby Changing</div>
+              <div className="text-2xl md:text-3xl font-bold text-blue-600">Daily</div>
+              <div className="text-gray-600 text-sm">Updated by community</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Popular Cities */}
+      {/* Category links */}
       <section className="section">
-        <div className="container-custom">
-          <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-8">Popular Cities</h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {cityData.slice(0, 8).map((city) => (
+        <div className="container-custom max-w-5xl">
+          <div className="flex items-center gap-2 mb-2">
+            <Compass className="w-6 h-6 text-mint-600" />
+            <h2 className="text-2xl md:text-3xl font-bold text-navy-800">Find by need</h2>
+          </div>
+          <p className="text-gray-600 mb-6 max-w-2xl">
+            Looking for a specific facility? Each page lists every matching toilet across the UK
+            with one-tap directions.
+          </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {CATEGORY_LINKS.map((cat) => (
               <Link
-                key={city.slug}
-                href={`/toilets/${city.slug}`}
-                className="card group hover:border-mint-500 border-2 border-transparent"
+                key={cat.href}
+                href={cat.href}
+                className="card group hover:shadow-md hover:border-navy-300 transition-all border border-gray-100"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-navy-100 rounded-xl flex items-center justify-center text-2xl group-hover:bg-mint-100 transition-colors">
-                    🚻
+                  <div className={`w-12 h-12 ${cat.cls} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                    <cat.icon className="w-6 h-6" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-navy-800 group-hover:text-mint-600 transition-colors">
-                      {city.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">{city.count.toLocaleString()} toilets</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-navy-800 group-hover:text-navy-900">{cat.label}</h3>
+                    <p className="text-sm text-gray-500">{cat.blurb}</p>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-mint-500 transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
                 </div>
               </Link>
             ))}
@@ -141,88 +218,164 @@ export default function ToiletsDirectoryPage() {
         </div>
       </section>
 
-      {/* All Cities by Region */}
+      {/* Top cities — sorted by real toilet count */}
       <section className="section bg-gray-50">
-        <div className="container-custom">
-          <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-8">Browse by Region</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {Object.entries(regions).map(([region, cities]) => (
-              <div key={region}>
-                <h3 className="font-bold text-navy-700 mb-4 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-mint-500" />
-                  {region}
-                </h3>
-                <ul className="space-y-2">
-                  {cities.map((city) => (
-                    <li key={city.slug}>
-                      <Link
-                        href={`/toilets/${city.slug}`}
-                        className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white transition-colors group"
-                      >
-                        <span className="text-gray-700 group-hover:text-navy-700">
-                          {city.name}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {city.count.toLocaleString()}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+        <div className="container-custom max-w-5xl">
+          <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-2">
+            Most-listed UK cities
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Cities ranked by how many verified toilets we have. Each tile takes you to the city
+            detail page with full filters.
+          </p>
+          {byCity.length === 0 ? (
+            <div className="card text-center py-10">
+              <p className="text-gray-600">
+                We&apos;re still loading live counts. Browse by region below or open the live map.
+              </p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {byCity.slice(0, 12).map(({ city, count }) => (
+                <Link
+                  key={city.slug}
+                  href={`/toilets/${city.slug}`}
+                  className="card group hover:shadow-md hover:border-mint-300 transition-all border border-gray-100"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-bold text-navy-800 group-hover:text-mint-700">{city.fullName}</h3>
+                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-mint-600" />
+                  </div>
+                  <p className="text-sm text-gray-500">{count.toLocaleString('en-GB')} toilets</p>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* SEO Content */}
-      <section className="section">
-        <div className="container-custom">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-6">
-              About Our UK Toilet Directory
-            </h2>
-            <div className="prose prose-lg text-gray-600">
-              <p>
-                Where To Wee maintains the most comprehensive database of public toilets across the
-                United Kingdom. Our directory includes toilets in shopping centres, train stations,
-                parks, and standalone public facilities.
-              </p>
-              <p>
-                Each listing includes important information such as wheelchair accessibility, baby
-                changing facilities, opening hours, and whether the toilet is free or paid. User
-                ratings help you find the cleanest and best-maintained facilities.
-              </p>
-              <p>
-                Whether you're a parent with young children, someone with accessibility needs, or
-                simply looking for the nearest loo, our directory has you covered across all major
-                UK cities and towns.
-              </p>
+      {/* Top-rated toilets nationwide */}
+      {topRated.length > 0 && (
+        <section className="section">
+          <div className="container-custom max-w-5xl">
+            <div className="flex items-center gap-2 mb-2">
+              <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+              <h2 className="text-2xl md:text-3xl font-bold text-navy-800">Top-rated nationwide</h2>
+            </div>
+            <p className="text-gray-600 mb-6 max-w-2xl">
+              Highest-rated toilets across the UK, based on community ratings.
+            </p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {topRated.map((t) => {
+                const citySlug = cityFromAddress(t.address) ?? 'uk';
+                const href = `/toilets/${citySlug}/${t.id}-${slugifyToiletName(t.name)}`;
+                return (
+                  <Link
+                    key={t.id}
+                    href={href}
+                    className="card border border-gray-100 hover:shadow-md hover:border-navy-300 group"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3 className="font-bold text-navy-800 group-hover:text-mint-600 line-clamp-2">
+                        {t.name}
+                      </h3>
+                      <div className="flex items-center gap-1 text-sm flex-shrink-0">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        <span className="font-semibold">{t.average_rating?.toFixed(1)}</span>
+                      </div>
+                    </div>
+                    {t.address && (
+                      <p className="text-sm text-gray-600 line-clamp-2">{t.address}</p>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* All cities by region */}
+      {Object.keys(grouped).length > 0 && (
+        <section className="section bg-gray-50">
+          <div className="container-custom max-w-6xl">
+            <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-8">Browse by region</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {Object.entries(grouped)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([region, cities]) => (
+                  <div key={region}>
+                    <h3 className="font-bold text-navy-700 mb-4 flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-mint-500" />
+                      {region}
+                    </h3>
+                    <ul className="space-y-1">
+                      {cities
+                        .sort((a, b) => b.count - a.count)
+                        .map(({ city, count }) => (
+                          <li key={city.slug}>
+                            <Link
+                              href={`/toilets/${city.slug}`}
+                              className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white transition-colors group"
+                            >
+                              <span className="text-gray-700 group-hover:text-navy-700">
+                                {city.fullName}
+                              </span>
+                              <span className="text-sm text-gray-500">
+                                {count.toLocaleString('en-GB')}
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA */}
       <section className="section bg-navy-600 text-white">
-        <div className="container-custom text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">Can't Find Your City?</h2>
+        <div className="container-custom text-center max-w-3xl">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">Don&apos;t see your city?</h2>
           <p className="text-gray-300 mb-6">
-            Use our interactive map to find toilets anywhere in the UK, or download the app for the
-            best experience.
+            The interactive map covers the whole of the UK, including towns and villages too small
+            for their own page. The mobile app caches your last view for offline use.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/map" className="btn btn-mint">
               <MapPin className="w-5 h-5" />
-              Open Map
+              Open map
             </Link>
             <Link href="/download" className="btn bg-white text-navy-600 hover:bg-gray-100">
-              Download App
+              Download app
             </Link>
           </div>
         </div>
       </section>
+
+      {/* JSON-LD: ItemList of cities for richer SERPs */}
+      {byCity.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'ItemList',
+              name: 'UK cities with public toilet directories on Where To Wee',
+              numberOfItems: byCity.length,
+              itemListElement: byCity.slice(0, 30).map((c, i) => ({
+                '@type': 'ListItem',
+                position: i + 1,
+                url: `https://wheretowee.uk/toilets/${c.city.slug}`,
+                name: `Public toilets in ${c.city.fullName}`,
+              })),
+            }),
+          }}
+        />
+      )}
+      <BreadcrumbJsonLd trail={[{ name: 'UK city directory', url: 'https://wheretowee.uk/toilets' }]} />
     </>
   );
 }
-

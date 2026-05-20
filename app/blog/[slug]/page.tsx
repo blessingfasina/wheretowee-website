@@ -177,9 +177,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         <section className="bg-gray-100">
           <div className="container-custom py-8">
             <div className="max-w-4xl mx-auto">
-              <img 
-                src={post.image_url} 
+              <img
+                src={post.image_url}
                 alt={post.title}
+                width={1200}
+                height={630}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-auto rounded-2xl shadow-lg"
               />
             </div>
@@ -256,9 +260,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 <article key={related.slug} className="card group hover:border-mint-500 border-2 border-transparent">
                   <div className="h-32 bg-gradient-to-br from-navy-100 to-navy-200 rounded-xl mb-4 flex items-center justify-center overflow-hidden">
                     {related.image_url ? (
-                      <img 
-                        src={related.image_url} 
+                      <img
+                        src={related.image_url}
                         alt={related.title}
+                        width={400}
+                        height={128}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover"
                       />
                     ) : (

@@ -319,9 +319,13 @@ export default function PressPage() {
                 {/* App Icon - Light Background */}
                 <div className="bg-gray-50 p-8 rounded-xl text-center">
                   <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg">
-                    <img 
-                      src="/icon-512.png" 
-                      alt="Where To Wee App Icon" 
+                    <img
+                      src="/icon-512.png"
+                      alt="Where To Wee App Icon"
+                      width={128}
+                      height={128}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -336,9 +340,13 @@ export default function PressPage() {
                 {/* App Icon - Dark Background Preview */}
                 <div className="bg-navy-600 p-8 rounded-xl text-center">
                   <div className="w-32 h-32 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg bg-white/10 flex items-center justify-center">
-                    <img 
-                      src="/icon-512.png" 
-                      alt="Where To Wee App Icon on Dark Background" 
+                    <img
+                      src="/icon-512.png"
+                      alt="Where To Wee App Icon on Dark Background"
+                      width={128}
+                      height={128}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover"
                     />
                   </div>

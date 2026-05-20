@@ -78,9 +78,13 @@ export default async function BlogPage() {
                   {/* Placeholder image */}
                   <div className="h-48 bg-gradient-to-br from-navy-100 to-navy-200 rounded-xl mb-4 flex items-center justify-center overflow-hidden">
                     {post.image_url ? (
-                      <img 
-                        src={post.image_url} 
+                      <img
+                        src={post.image_url}
                         alt={post.title}
+                        width={400}
+                        height={192}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover"
                       />
                     ) : (

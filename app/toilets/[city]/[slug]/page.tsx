@@ -35,6 +35,7 @@ import {
   type ConfidenceLevel,
 } from '@/lib/supabase';
 import { ToiletDetailImpression, TrackedDirectionsLink } from './Tracking';
+import MiniMap from '@/components/MiniMap';
 
 // Revalidate every hour. Each toilet page is rendered on-demand
 // (ISR) so we don't have to bake 18k pages at build time.
@@ -337,6 +338,17 @@ export default async function ToiletDetailPage({ params }: Props) {
             </Link>
           </div>
         </div>
+      </section>
+
+      {/* Static map preview — gives each detail page a unique visual
+          asset (helps with "Crawled - currently not indexed") and a
+          quick spatial anchor for the user. Tap to open interactive. */}
+      <section className="container-custom max-w-4xl -mt-6 md:-mt-8 relative z-10">
+        <MiniMap
+          lat={toilet.latitude}
+          lng={toilet.longitude}
+          alt={`Map showing the location of ${toilet.name} in ${cityName}`}
+        />
       </section>
 
       {/* Main content */}

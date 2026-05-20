@@ -207,6 +207,61 @@ export function isIndexWorthyToilet(t: {
   return false;
 }
 
+/**
+ * Aggregate per-city counts for the `/toilets` city directory page.
+ *
+ * Issues one head-only count per city in parallel — the same shape as
+ * [getCategoryStats] but without the category filter. Soft-fails to
+ * `count: 0` per city on error so the directory page always renders.
+ *
+ * Cheaper than scanning the whole table client-side; each query is a
+ * single integer round-trip.
+ */
+export async function getCityDirectoryStats(): Promise<{
+  total: number;
+  byCity: Array<{ city: CityInfo; count: number }>;
+  topRated: Toilet[];
+}> {
+  const empty = { total: 0, byCity: [] as Array<{ city: CityInfo; count: number }>, topRated: [] as Toilet[] };
+  try {
+    const tableName = await getActiveToiletTable();
+    const cityPromises = CITIES.map(async (city) => {
+      const { count, error } = await supabase
+        .from(tableName)
+        .select('*', { count: 'exact', head: true })
+        .or('status.eq.active,status.eq.approved')
+        .ilike('address', `%${city.fullName}%`);
+      if (error) return { city, count: 0 };
+      return { city, count: count ?? 0 };
+    });
+    const totalQuery = supabase
+      .from(tableName)
+      .select('*', { count: 'exact', head: true })
+      .or('status.eq.active,status.eq.approved');
+    const topRatedQuery = supabase
+      .from(tableName)
+      .select('*')
+      .or('status.eq.active,status.eq.approved')
+      .not('average_rating', 'is', null)
+      .gte('rating_count', 2)
+      .order('average_rating', { ascending: false })
+      .limit(6);
+    const [byCityRaw, totalRes, topRatedRes] = await Promise.all([
+      Promise.all(cityPromises),
+      totalQuery,
+      topRatedQuery,
+    ]);
+    return {
+      total: totalRes.count ?? 0,
+      byCity: byCityRaw.sort((a, b) => b.count - a.count),
+      topRated: ((topRatedRes.data as Toilet[] | null) ?? []),
+    };
+  } catch (e) {
+    console.error('getCityDirectoryStats threw:', e);
+    return empty;
+  }
+}
+
 /// PostgREST `OR` filter string mirroring [isIndexWorthyToilet]. Used by
 /// the slim sitemap query so the filtering happens server-side rather
 /// than streaming 30k rows into Node and discarding 90 % of them.
