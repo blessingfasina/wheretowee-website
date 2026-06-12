@@ -147,7 +147,7 @@ export default function ChatWidget() {
           >
             <div>
               <p className="text-sm font-bold">Chat with us</p>
-              <p className="text-xs text-white/70">We usually reply within a day</p>
+              <p className="text-xs text-white/70">We usually reply within a few hours</p>
             </div>
             <button
               onClick={() => setOpen(false)}
