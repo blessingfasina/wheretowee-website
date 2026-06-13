@@ -34,6 +34,7 @@ export default function ChatWidget() {
   const [sending, setSending] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [online, setOnline] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef(0);
 
@@ -70,6 +71,13 @@ export default function ChatWidget() {
       });
     // Intentionally mount-only: polling resumes when the panel opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Admin-controlled online status (checked once on mount).
+  useEffect(() => {
+    supabase.rpc('chat_get_online_status').then(({ data, error }) => {
+      if (!error && typeof data === 'boolean') setOnline(data);
+    });
   }, []);
 
   // Load history + poll while the panel is open.
@@ -125,18 +133,34 @@ export default function ChatWidget() {
       {/* Floating bubble + online label */}
       {!open && (
         <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
-          {/* "We're online" label sitting above the bubble */}
+          {/* Status label sitting above the bubble */}
           <button
             onClick={() => setOpen(true)}
-            aria-label="Chat with us — we're online"
+            aria-label={online ? 'Chat with us — we\'re online' : 'Chat with us — leave a message'}
             className="flex items-center gap-2 rounded-full bg-white px-3.5 py-2 shadow-lg ring-1 ring-black/5 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500/50"
           >
             <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+              {online && (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+              )}
+              <span
+                className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                  online ? 'bg-green-500' : 'bg-gray-400'
+                }`}
+              />
             </span>
             <span className="text-sm font-semibold text-gray-800">
-              Chat with us · We&apos;re online
+              {online ? (
+                <>
+                  <span className="sm:hidden">We&apos;re online</span>
+                  <span className="hidden sm:inline">Chat with us · We&apos;re online</span>
+                </>
+              ) : (
+                <>
+                  <span className="sm:hidden">Leave a message</span>
+                  <span className="hidden sm:inline">Chat with us · Leave a message</span>
+                </>
+              )}
             </span>
           </button>
 
@@ -148,9 +172,13 @@ export default function ChatWidget() {
             style={{ backgroundColor: '#1E3A5F' }}
           >
             <MessageCircle className="h-6 w-6" />
-            {/* Green online dot */}
+            {/* Online/offline dot */}
             <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white">
-              <span className="h-3 w-3 rounded-full bg-green-500" />
+              <span
+                className={`h-3 w-3 rounded-full ${
+                  online ? 'bg-green-500' : 'bg-gray-400'
+                }`}
+              />
             </span>
             {hasUnread && (
               <span className="absolute -left-0.5 -top-0.5 h-3.5 w-3.5 rounded-full bg-red-500 ring-2 ring-white" />
@@ -170,12 +198,22 @@ export default function ChatWidget() {
             <div>
               <p className="flex items-center gap-1.5 text-sm font-bold">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
+                  {online && (
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                  )}
+                  <span
+                    className={`relative inline-flex h-2 w-2 rounded-full ${
+                      online ? 'bg-green-400' : 'bg-gray-300'
+                    }`}
+                  />
                 </span>
                 Chat with us
               </p>
-              <p className="text-xs text-white/70">We usually reply within a few hours</p>
+              <p className="text-xs text-white/70">
+                {online
+                  ? 'We usually reply within a few hours'
+                  : 'Away right now — leave a message and we\'ll reply'}
+              </p>
             </div>
             <button
               onClick={() => setOpen(false)}
