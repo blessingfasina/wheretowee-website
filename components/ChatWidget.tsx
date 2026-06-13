@@ -122,19 +122,41 @@ export default function ChatWidget() {
 
   return (
     <>
-      {/* Floating bubble */}
+      {/* Floating bubble + online label */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          aria-label="Chat with us"
-          className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-navy-primary text-white shadow-lg transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-navy-primary focus:ring-offset-2"
-          style={{ backgroundColor: '#1E3A5F' }}
-        >
-          <MessageCircle className="h-6 w-6" />
-          {hasUnread && (
-            <span className="absolute -right-0.5 -top-0.5 h-3.5 w-3.5 rounded-full bg-red-500 ring-2 ring-white" />
-          )}
-        </button>
+        <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
+          {/* "We're online" label sitting above the bubble */}
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Chat with us — we're online"
+            className="flex items-center gap-2 rounded-full bg-white px-3.5 py-2 shadow-lg ring-1 ring-black/5 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500/50"
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+            </span>
+            <span className="text-sm font-semibold text-gray-800">
+              Chat with us · We&apos;re online
+            </span>
+          </button>
+
+          {/* Bubble */}
+          <button
+            onClick={() => setOpen(true)}
+            aria-label="Chat with us"
+            className="relative flex h-14 w-14 items-center justify-center self-end rounded-full text-white shadow-lg transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-navy-primary focus:ring-offset-2"
+            style={{ backgroundColor: '#1E3A5F' }}
+          >
+            <MessageCircle className="h-6 w-6" />
+            {/* Green online dot */}
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white">
+              <span className="h-3 w-3 rounded-full bg-green-500" />
+            </span>
+            {hasUnread && (
+              <span className="absolute -left-0.5 -top-0.5 h-3.5 w-3.5 rounded-full bg-red-500 ring-2 ring-white" />
+            )}
+          </button>
+        </div>
       )}
 
       {/* Chat panel */}
@@ -146,7 +168,13 @@ export default function ChatWidget() {
             style={{ backgroundColor: '#1E3A5F' }}
           >
             <div>
-              <p className="text-sm font-bold">Chat with us</p>
+              <p className="flex items-center gap-1.5 text-sm font-bold">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
+                </span>
+                Chat with us
+              </p>
               <p className="text-xs text-white/70">We usually reply within a few hours</p>
             </div>
             <button
