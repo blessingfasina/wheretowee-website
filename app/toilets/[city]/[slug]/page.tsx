@@ -354,6 +354,31 @@ export default async function ToiletDetailPage({ params }: Props) {
       {/* Main content */}
       <section className="section">
         <div className="container-custom max-w-4xl">
+          {/* Public "update from the team" note — set by admins when a
+              report is resolved. Shown prominently so users see fixes. */}
+          {toilet.public_note && (
+            <div className="card mb-6 bg-mint-50 border border-mint-200">
+              <div className="flex items-start gap-3">
+                <BadgeCheck className="w-6 h-6 text-mint-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h2 className="text-base font-bold text-navy-800 flex items-center gap-2 flex-wrap">
+                    Update from the team
+                    {toilet.public_note_at && (
+                      <span className="text-xs font-normal text-gray-500">
+                        ·{' '}
+                        {new Date(toilet.public_note_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    )}
+                  </h2>
+                  <p className="text-gray-700 mt-1">{toilet.public_note}</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-6">
             {/* Confidence card OR "Help us verify" prompt */}
             {hasSignals && confidenceScore != null && confidenceLevel ? (

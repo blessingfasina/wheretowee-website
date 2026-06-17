@@ -36,6 +36,8 @@ export interface Toilet {
   urinal_only?: string | null;
   children?: string | null;
   notes?: string | null;
+  public_note?: string | null;       // user-visible "update from the team"
+  public_note_at?: string | null;
   payment_details?: string | null;
   verified_at?: string | null;
   source?: string | null;         // V3: 'v1', 'v2', or 'merged'
