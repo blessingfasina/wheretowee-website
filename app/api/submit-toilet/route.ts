@@ -4,6 +4,26 @@ import { NextRequest, NextResponse } from 'next/server';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+async function geocodePostcode(
+  postcode: string,
+): Promise<{ latitude: number; longitude: number } | null> {
+  const normalised = postcode.replace(/\s+/g, '').toUpperCase();
+  if (!normalised) return null;
+  try {
+    const resp = await fetch(
+      `https://api.postcodes.io/postcodes/${encodeURIComponent(normalised)}`,
+      { next: { revalidate: 86400 } },
+    );
+    if (!resp.ok) return null;
+    const body = await resp.json();
+    const result = body?.result;
+    if (!result?.latitude || !result?.longitude) return null;
+    return { latitude: result.latitude, longitude: result.longitude };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -29,9 +49,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const coords = await geocodePostcode(postcode.trim());
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Insert into toilet_submissions table (pending review)
+    // Queue in toilet_submissions for admin moderation (not the live map).
     const { data, error } = await supabase
       .from('toilet_submissions')
       .insert([
@@ -40,6 +62,8 @@ export async function POST(request: NextRequest) {
           address: address.trim(),
           city: city.trim(),
           postcode: postcode.trim().toUpperCase(),
+          latitude: coords?.latitude ?? null,
+          longitude: coords?.longitude ?? null,
           is_free: is_free ?? true,
           is_accessible: is_accessible ?? false,
           has_baby_change: has_baby_change ?? false,
