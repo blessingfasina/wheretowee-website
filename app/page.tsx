@@ -49,7 +49,8 @@ const HOMEPAGE_FAQS = [
   },
 ];
 
-// Stats - update these with real numbers
+// Homepage stats — hidden until we have verified numbers worth showing publicly.
+const SHOW_HOMEPAGE_STATS = false;
 const stats = [
   { label: 'Toilets Listed', value: '18,000+' },
   { label: 'UK Cities Covered', value: '500+' },
@@ -197,21 +198,22 @@ export default function HomePage() {
              style={{ clipPath: 'ellipse(75% 100% at 50% 100%)' }} />
       </section>
 
-      {/* Stats Section */}
-      <section className="py-8 md:py-12 -mt-8 relative z-10">
-        <div className="container-custom">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="card text-center">
-                <div className="text-3xl md:text-4xl font-extrabold text-navy-600 mb-1">
-                  {stat.value}
+      {SHOW_HOMEPAGE_STATS && (
+        <section className="py-8 md:py-12 -mt-8 relative z-10">
+          <div className="container-custom">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+              {stats.map((stat) => (
+                <div key={stat.label} className="card text-center">
+                  <div className="text-3xl md:text-4xl font-extrabold text-navy-600 mb-1">
+                    {stat.value}
+                  </div>
+                  <div className="text-gray-500 text-sm">{stat.label}</div>
                 </div>
-                <div className="text-gray-500 text-sm">{stat.label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Features Section */}
       <section className="section bg-gray-50">
