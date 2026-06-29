@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getActiveToiletTable, supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,10 +44,11 @@ export async function POST(request: NextRequest) {
 
     if (!fetchError && ratings && ratings.length > 0) {
       const averageRating = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
-      
+      const tableName = await getActiveToiletTable();
+
       await supabase
-        .from('toilets')
-        .update({ 
+        .from(tableName)
+        .update({
           average_rating: Math.round(averageRating * 10) / 10,
           rating_count: ratings.length,
         })

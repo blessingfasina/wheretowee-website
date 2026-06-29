@@ -6,7 +6,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Base toilet interface (works with v1, v2, and v3)
+// Base toilet interface (toilets_v2 catalogue)
 export interface Toilet {
   id: number;
   name: string;
@@ -305,50 +305,52 @@ let cachedTableName: string | null = null;
 let cacheExpiry: number = 0;
 const CACHE_DURATION = 60000; // 1 minute cache
 
+/** Canonical live toilet catalogue — map, website, moderation approvals. */
+export const LIVE_TOILET_TABLE = 'toilets_v2';
+
+const NEARBY_RPC = 'find_nearby_toilets_v2';
+
 /**
- * Get the active toilet table name from app_settings
- * Defaults to 'toilets' if setting not found
+ * Reads app_toilet_table (then website_toilet_table) from app_settings.
+ * Defaults to [LIVE_TOILET_TABLE].
  */
 export async function getActiveToiletTable(): Promise<string> {
-  // Return cached value if still valid
   if (cachedTableName && Date.now() < cacheExpiry) {
     return cachedTableName;
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('setting_value')
-      .eq('setting_key', 'website_toilet_table')
-      .single();
+  for (const key of ['app_toilet_table', 'website_toilet_table']) {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('setting_value')
+        .eq('setting_key', key)
+        .maybeSingle();
 
-    if (!error && data && data.setting_value) {
-      cachedTableName = data.setting_value as string;
-      cacheExpiry = Date.now() + CACHE_DURATION;
-      return cachedTableName;
+      if (!error && data?.setting_value) {
+        const table = data.setting_value as string;
+        if (table !== LIVE_TOILET_TABLE) {
+          console.warn(
+            `Ignoring legacy app_settings ${key}=${table}, using ${LIVE_TOILET_TABLE}`,
+          );
+          continue;
+        }
+        cachedTableName = table;
+        cacheExpiry = Date.now() + CACHE_DURATION;
+        return cachedTableName;
+      }
+    } catch {
+      // try next key
     }
-  } catch (e) {
-    console.log('Could not fetch app_settings, using default table');
   }
 
-  // Default to original table
-  cachedTableName = 'toilets';
+  cachedTableName = LIVE_TOILET_TABLE;
   cacheExpiry = Date.now() + CACHE_DURATION;
-  return 'toilets';
+  return LIVE_TOILET_TABLE;
 }
 
-/**
- * Get the appropriate RPC function name based on table
- */
-function getRpcFunctionName(tableName: string): string {
-  switch (tableName) {
-    case 'toilets_v3':
-      return 'find_nearby_toilets_v3';
-    case 'toilets_v2':
-      return 'find_nearby_toilets_v2';
-    default:
-      return 'find_nearby_toilets';
-  }
+function getRpcFunctionName(_tableName: string): string {
+  return NEARBY_RPC;
 }
 
 /**
@@ -794,9 +796,9 @@ export async function getToiletStats(): Promise<{
     .or('status.eq.active,status.eq.approved')
     .or('fee.eq.no,fee.eq.free');
 
-  // V2/V3 specific stat (radar key)
+  // Radar-key loos (v2 catalogue)
   let radarRequired = 0;
-  if (tableName === 'toilets_v2' || tableName === 'toilets_v3') {
+  if (tableName === LIVE_TOILET_TABLE) {
     const { count } = await supabase
       .from(tableName)
       .select('*', { count: 'exact', head: true })
@@ -805,14 +807,12 @@ export async function getToiletStats(): Promise<{
     radarRequired = count || 0;
   }
 
-  const hasEnhancedFields = tableName === 'toilets_v2' || tableName === 'toilets_v3';
-
   return {
     total: total || 0,
     accessible: accessible || 0,
     babyChanging: babyChanging || 0,
     free: free || 0,
-    ...(hasEnhancedFields && { radarRequired }),
+    radarRequired,
   };
 }
 
@@ -851,25 +851,21 @@ export async function getCities(): Promise<string[]> {
  */
 export async function getDataSourceInfo(): Promise<{
   tableName: string;
-  version: 'v1' | 'v2' | 'v3';
+  version: 'v2';
   hasEnhancedFields: boolean;
   recordCount: number;
 }> {
   const tableName = await getActiveToiletTable();
-  
+
   const { count } = await supabase
     .from(tableName)
     .select('*', { count: 'exact', head: true })
     .or('status.eq.active,status.eq.approved');
 
-  let version: 'v1' | 'v2' | 'v3' = 'v1';
-  if (tableName === 'toilets_v2') version = 'v2';
-  if (tableName === 'toilets_v3') version = 'v3';
-
   return {
     tableName,
-    version,
-    hasEnhancedFields: tableName === 'toilets_v2' || tableName === 'toilets_v3',
+    version: 'v2',
+    hasEnhancedFields: true,
     recordCount: count || 0,
   };
 }
