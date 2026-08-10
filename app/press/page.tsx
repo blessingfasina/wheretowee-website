@@ -65,12 +65,16 @@ export default function PressPage() {
                   <dd className="font-semibold text-navy-800">Where To Wee</dd>
                 </div>
                 <div>
-                  <dt className="text-sm text-gray-500 mb-1">Founded</dt>
-                  <dd className="font-semibold text-navy-800">2025</dd>
+                  <dt className="text-sm text-gray-500 mb-1">Launched</dt>
+                  <dd className="font-semibold text-navy-800">January 2026</dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-gray-500 mb-1">Founder</dt>
+                  <dd className="font-semibold text-navy-800">Blessing Fasina</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-gray-500 mb-1">Headquarters</dt>
-                  <dd className="font-semibold text-navy-800">United Kingdom</dd>
+                  <dd className="font-semibold text-navy-800">Bournemouth, United Kingdom</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-gray-500 mb-1">Website</dt>
@@ -79,7 +83,7 @@ export default function PressPage() {
                 <div className="md:col-span-2">
                   <dt className="text-sm text-gray-500 mb-1">One-Line Description</dt>
                   <dd className="font-semibold text-navy-800">
-                    The UK&apos;s community-powered toilet finder app, helping over 1.5 million monthly searchers find the nearest loo.
+                    The UK&apos;s community-powered toilet finder — 15,000+ mapped toilets across 400+ towns and cities, free on iOS, Android and the web.
                   </dd>
                 </div>
               </dl>
@@ -103,14 +107,14 @@ export default function PressPage() {
               <div className="prose prose-lg text-gray-700 space-y-6">
                 <h3 className="text-xl font-bold text-navy-800 mt-0">The Spark</h3>
                 <p>
-                  Where To Wee started with a frustration our founder knows all too well. As a WordPress developer 
-                  and entrepreneur living in the UK, finding a public toilet when you&apos;re out shouldn&apos;t be this hard 
-                  – but it is.
+                  Where To Wee started with a frustration our founder, Blessing Fasina, knows all too well. Blessing
+                  moved to the UK from Nigeria in 2023 to study for his Master&apos;s degree — and quickly discovered
+                  that finding a public toilet when you&apos;re out is far harder than it should be.
                 </p>
                 <p>
                   Picture this: you&apos;re out in the cold, miles from home, and you desperately need the loo. You look 
                   around. Nothing. You check your phone. The results are outdated, closed, or paid facilities you 
-                  can&apos;t access. Our founder found himself asking a corner shop owner if he could use their 
+                  can&apos;t access. Blessing found himself asking a corner shop owner if he could use their 
                   toilet. He said yes, thankfully, but the whole experience felt unnecessarily stressful.
                 </p>
                 <p className="font-semibold text-navy-700">
@@ -146,14 +150,11 @@ export default function PressPage() {
                   As developers, we think in systems and data. So we did what any curious problem-solver 
                   would do: we researched the market. What we found was eye-opening:
                 </p>
-                <ul>
-                  <li><strong>&quot;Toilet near me&quot;</strong> – 500,000 average monthly searches in the UK</li>
-                  <li><strong>&quot;Public toilets close to me&quot;</strong> – 500,000 average monthly searches</li>
-                  <li><strong>&quot;Public restroom near me&quot;</strong> – 500,000 average monthly searches</li>
-                </ul>
                 <p>
-                  That&apos;s over <strong>1.5 million searches every single month</strong> from people who need a toilet 
-                  and can&apos;t find one.
+                  Keyword research showed that <strong>&quot;toilet near me&quot;</strong> and closely related searches add up
+                  to over <strong>1.5 million searches every single month</strong> in the UK – from people who need a
+                  toilet and can&apos;t find one. The Royal Society for Public Health has found there is just one public
+                  toilet for every 15,481 people in England.
                 </p>
 
                 <h3 className="text-xl font-bold text-navy-800">Building the Solution</h3>
@@ -171,7 +172,7 @@ export default function PressPage() {
                 </p>
                 <p>
                   We&apos;re not just building an app – we&apos;re building a movement. Because access to a toilet 
-                  isn&apos;t a luxury. It&apos;s a basic human need. And in 2025, no one should have to panic trying to find one.
+                  isn&apos;t a luxury. It&apos;s a basic human need. And in 2026, no one should have to panic trying to find one.
                 </p>
               </div>
             </div>
@@ -198,15 +199,15 @@ export default function PressPage() {
               </div>
               
               <div className="bg-gradient-to-br from-navy-500 to-navy-700 text-white p-8 rounded-2xl">
-                <div className="text-5xl font-bold mb-2">500K+</div>
-                <div className="text-white/90 text-lg">Monthly searches for &quot;toilet near me&quot;</div>
-                <div className="mt-4 text-sm text-white/70">Source: Keyword research data</div>
+                <div className="text-5xl font-bold mb-2">18,000+</div>
+                <div className="text-white/90 text-lg">People using Where To Wee across iOS, Android and the web</div>
+                <div className="mt-4 text-sm text-white/70">Source: Google Analytics, 2026</div>
               </div>
               
               <div className="bg-white border-2 border-gray-200 p-8 rounded-2xl">
-                <div className="text-5xl font-bold text-navy-800 mb-2">1 in 5</div>
-                <div className="text-gray-600 text-lg">People avoid going out due to toilet anxiety</div>
-                <div className="mt-4 text-sm text-gray-500">Source: Health studies</div>
+                <div className="text-5xl font-bold text-navy-800 mb-2">15,481</div>
+                <div className="text-gray-600 text-lg">People for every public toilet in England</div>
+                <div className="mt-4 text-sm text-gray-500">Source: Royal Society for Public Health</div>
               </div>
               
               <div className="bg-white border-2 border-gray-200 p-8 rounded-2xl">
@@ -217,18 +218,41 @@ export default function PressPage() {
             </div>
             
             <div className="mt-8 p-6 bg-amber-50 rounded-xl border border-amber-200">
-              <p className="text-amber-800">
-                <strong>BBC Coverage:</strong> The BBC has reported on the UK&apos;s public toilet crisis – 
-                <a 
-                  href="https://www.bbc.co.uk/news/articles/cr43g34rny1o" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-amber-700 underline hover:text-amber-900 ml-1"
-                >
-                  &quot;Call for greater access to public toilets&quot;
-                  <ExternalLink className="w-3 h-3 inline ml-1" />
-                </a>
-              </p>
+              <h3 className="text-lg font-bold text-amber-900 mb-3">As Featured In</h3>
+              <ul className="text-amber-800 space-y-2">
+                <li>
+                  <strong>BBC News</strong> –
+                  <a
+                    href="https://www.bbc.co.uk/news/articles/c2k2jpn4dpyo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-700 underline hover:text-amber-900 ml-1"
+                  >
+                    &quot;Meet the loo guru – mapping places to pee&quot;
+                    <ExternalLink className="w-3 h-3 inline ml-1" />
+                  </a>{' '}
+                  (May 2026)
+                </li>
+                <li>
+                  <strong>BBC Radio Solent</strong> – two live interviews with founder Blessing Fasina (May and July 2026)
+                </li>
+                <li>
+                  <strong>Bournemouth Daily Echo</strong> –
+                  <a
+                    href="https://www.bournemouthecho.co.uk/news/26090176.bournemouth-man-creates-app-helps-find-public-toilets/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-700 underline hover:text-amber-900 ml-1"
+                  >
+                    &quot;Bournemouth man creates app that helps find public toilets&quot;
+                    <ExternalLink className="w-3 h-3 inline ml-1" />
+                  </a>{' '}
+                  (print and online, May 2026)
+                </li>
+                <li>
+                  <strong>The Week Junior</strong> – &quot;Creating a useful app&quot;, People section (16 May 2026 issue)
+                </li>
+              </ul>
             </div>
           </div>
         </div>
@@ -248,18 +272,18 @@ export default function PressPage() {
             <div className="space-y-6">
               <blockquote className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-mint-500">
                 <p className="text-xl text-gray-700 italic mb-4">
-                  &quot;Over 1.5 million people search for a toilet in the UK every month. Where To Wee exists 
+                  &quot;There are over 1.5 million searches for a toilet in the UK every month. Where To Wee exists 
                   because no one should have to panic about finding one.&quot;
                 </p>
-                <cite className="text-gray-500 not-italic">— Founder, Where To Wee</cite>
+                <cite className="text-gray-500 not-italic">— Blessing Fasina, Founder of Where To Wee</cite>
               </blockquote>
               
               <blockquote className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-navy-500">
                 <p className="text-xl text-gray-700 italic mb-4">
-                  &quot;I was freezing on a London street, desperately needing a toilet, with no idea where 
-                  to find one. That moment of panic became the spark for Where To Wee.&quot;
+                  &quot;When I arrived in the UK and went out, I couldn&apos;t find a toilet when I needed one. 
+                  That anxiety became the spark for Where To Wee.&quot;
                 </p>
-                <cite className="text-gray-500 not-italic">— Founder, Where To Wee</cite>
+                <cite className="text-gray-500 not-italic">— Blessing Fasina, Founder of Where To Wee</cite>
               </blockquote>
               
               <blockquote className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-amber-500">
@@ -267,7 +291,7 @@ export default function PressPage() {
                   &quot;Access to a toilet isn&apos;t a luxury – it&apos;s a basic human need. We&apos;re not just building 
                   an app; we&apos;re building a movement.&quot;
                 </p>
-                <cite className="text-gray-500 not-italic">— Founder, Where To Wee</cite>
+                <cite className="text-gray-500 not-italic">— Blessing Fasina, Founder of Where To Wee</cite>
               </blockquote>
             </div>
           </div>
