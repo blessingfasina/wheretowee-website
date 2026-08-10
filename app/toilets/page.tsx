@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     'Browse public toilets across 30+ UK cities — London, Manchester, Edinburgh and more. Free directory with accessibility, baby change and Changing Places filters.',
   openGraph: {
     title: 'Find Public Toilets by City — Where To Wee',
-    description: 'Browse 18,000+ public toilets across all major UK cities, with real verification and rating data.',
+    description: 'Browse 15,000+ public toilets across all major UK cities, with real verification and rating data.',
     url: 'https://wheretowee.uk/toilets',
   },
   alternates: {
@@ -116,7 +116,7 @@ const REGION_BY_SLUG: Record<string, string> = {
 
 export default async function ToiletsDirectoryPage() {
   const { total, byCity, topRated } = await getCityDirectoryStats();
-  const renderTotal = total > 0 ? total.toLocaleString('en-GB') : '18,000+';
+  const renderTotal = total > 0 ? total.toLocaleString('en-GB') : '15,000+';
   const cityCount = byCity.length;
 
   // Group cities by region for the secondary directory section.

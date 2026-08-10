@@ -88,7 +88,7 @@ Finding toilets near me that accept RADAR keys is easy with Where To Wee:
 3. Look for toilets marked with the wheelchair symbol
 4. Many RADAR-locked toilets are noted in our database
 
-Our database includes over 18,000 toilets across the UK, with accessibility information for each one.
+Our database includes over 15,000 toilets across the UK, with accessibility information for each one.
 
 ## Common RADAR Key Locations
 
@@ -382,7 +382,7 @@ Many councils now operate "Community Toilet Schemes" (sometimes called Comfort S
 Despite closures, toilets are still available. Here''s how to find them:
 
 **1. Use Where To Wee**
-Our app and website map over 18,000 toilets across the UK, including:
+Our app and website map over 15,000 toilets across the UK, including:
 - Remaining council facilities
 - Supermarkets with public toilets
 - Shopping centres

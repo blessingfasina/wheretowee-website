@@ -15,11 +15,11 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   metadataBase: new URL('https://wheretowee.uk'),
   title: {
-    default: 'Toilets Near Me - Find 18,000+ Public Toilets UK | Free Map',
+    default: 'Toilets Near Me - Find 15,000+ Public Toilets UK | Free Map',
     template: '%s | Where To Wee',
   },
   description:
-    'Need a toilet NOW? Find the nearest public toilet in seconds. 18,000+ locations across UK with wheelchair access, baby changing & ratings. 100% free!',
+    'Need a toilet NOW? Find the nearest public toilet in seconds. 15,000+ locations across UK with wheelchair access, baby changing & ratings. 100% free!',
   keywords: [
     'toilets near me',
     'toilet near me',
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     siteName: 'Where To Wee',
     title: 'Find Toilets Near Me | Public Toilets UK Map',
     description:
-      'Find clean, accessible public toilets near you across the UK. 18,000+ toilets with ratings and accessibility info.',
+      'Find clean, accessible public toilets near you across the UK. 15,000+ toilets with ratings and accessibility info.',
     images: [
       {
         url: '/og-image.png',
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Find Toilets Near Me | Free UK Toilet Finder',
-    description: 'Find clean, accessible public toilets across the UK. Free app with 18,000+ locations.',
+    description: 'Find clean, accessible public toilets across the UK. Free app with 15,000+ locations.',
     images: ['/og-image.png'],
     creator: '@wheretowee',
   },
@@ -141,7 +141,7 @@ export default function RootLayout({
               '@context': 'https://schema.org',
               '@type': 'WebApplication',
               name: 'Where To Wee - Toilet Finder',
-              description: 'Find public toilets near me instantly. 18,000+ toilets across the UK with wheelchair accessibility, baby changing facilities, and ratings.',
+              description: 'Find public toilets near me instantly. 15,000+ toilets across the UK with wheelchair accessibility, baby changing facilities, and ratings.',
               url: 'https://wheretowee.uk',
               applicationCategory: 'UtilitiesApplication',
               operatingSystem: 'iOS, Android, Web',

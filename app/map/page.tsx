@@ -5,7 +5,7 @@ import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 export const metadata: Metadata = {
   title: 'Toilets Near Me NOW - Interactive Map | Find in Seconds',
   description:
-    'Desperate for a loo? Find the nearest toilet instantly! Free interactive map with 18,000+ UK toilets. Filter: wheelchair, baby change, free. Updated daily.',
+    'Desperate for a loo? Find the nearest toilet instantly! Free interactive map with 15,000+ UK toilets. Filter: wheelchair, baby change, free. Updated daily.',
   keywords: [
     'toilets near me',
     'toilet near me',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: 'Find Toilets Near Me - Interactive Map | Where To Wee',
-    description: 'Find the nearest public toilets instantly. 18,000+ toilets across the UK with accessibility info, baby changing, and user ratings.',
+    description: 'Find the nearest public toilets instantly. 15,000+ toilets across the UK with accessibility info, baby changing, and user ratings.',
     type: 'website',
     url: 'https://wheretowee.uk/map',
   },

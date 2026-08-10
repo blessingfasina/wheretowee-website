@@ -101,7 +101,7 @@ export default function NotFound() {
             </h1>
             <p className="text-lg text-gray-300 mb-6 max-w-2xl">
               The link might be old, the toilet may have been merged, or the URL was mistyped.
-              Don&apos;t worry — there are 18,000+ other public toilets across the UK, and the live
+              Don&apos;t worry — there are 15,000+ other public toilets across the UK, and the live
               map will find the nearest one in seconds.
             </p>
             <div className="flex flex-wrap gap-3">

@@ -14,7 +14,7 @@ import { ImageResponse } from 'next/og';
  *     return renderOgCard({
  *       eyebrow: 'Accessible Toilets',
  *       title: 'Wheelchair-accessible loos across the UK',
- *       subtitle: '18,000+ listings · free · no sign-up',
+ *       subtitle: '15,000+ listings · free · no sign-up',
  *       accent: 'blue',
  *     });
  *   }
@@ -157,7 +157,7 @@ export function renderOgCard(config: OgCardConfig): ImageResponse {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 22, opacity: 0.9 }}>
             <span>📍</span>
-            <span>18,000+ public toilets · accessibility-first · free</span>
+            <span>15,000+ public toilets · accessibility-first · free</span>
           </div>
           <div
             style={{

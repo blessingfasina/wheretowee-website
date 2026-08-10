@@ -5,7 +5,7 @@ import CategoryLandingPage from '@/components/CategoryLandingPage';
 export const metadata: Metadata = {
   title: 'Free Public Toilets Near Me — UK Map & City Directory',
   description:
-    'Find free public toilets near you across the UK. 18,000+ locations including council loos, supermarkets, libraries and hospitals. No fee, no sign-up.',
+    'Find free public toilets near you across the UK. 15,000+ locations including council loos, supermarkets, libraries and hospitals. No fee, no sign-up.',
   keywords: [
     'free public toilets near me',
     'free toilets uk',
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Free Public Toilets Near Me — UK Directory',
     description:
-      'Free public toilets across the UK with accessibility info, opening hours and directions. 18,000+ locations, no sign-up.',
+      'Free public toilets across the UK with accessibility info, opening hours and directions. 15,000+ locations, no sign-up.',
     url: 'https://wheretowee.uk/free-public-toilets',
     type: 'website',
   },

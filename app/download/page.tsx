@@ -154,7 +154,7 @@ export default function DownloadPage() {
                   Download <span className="text-mint-400">Where To Wee</span>
                 </h1>
                 <p className="text-lg text-gray-300 mb-8 max-w-xl mx-auto lg:mx-0">
-                  Find public toilets near you instantly. 18,000+ locations across the UK with 
+                  Find public toilets near you instantly. 15,000+ locations across the UK with 
                   filters for free, accessible, and baby changing facilities.
                 </p>
 
@@ -195,7 +195,7 @@ export default function DownloadPage() {
                 {/* Stats */}
                 <div className="mt-8 flex items-center gap-6 justify-center lg:justify-start">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-mint-400">18,000+</div>
+                    <div className="text-2xl font-bold text-mint-400">15,000+</div>
                     <div className="text-sm text-gray-400">Toilets</div>
                   </div>
                   <div className="text-center">

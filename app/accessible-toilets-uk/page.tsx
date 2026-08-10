@@ -5,7 +5,7 @@ import CategoryLandingPage from '@/components/CategoryLandingPage';
 export const metadata: Metadata = {
   title: 'Accessible Toilets UK — Wheelchair-Accessible Loos Near You',
   description:
-    'Find wheelchair-accessible public toilets near you across the UK. Grab rails, RADAR-key locks, Changing Places hoists and more — 18,000+ locations, free to search.',
+    'Find wheelchair-accessible public toilets near you across the UK. Grab rails, RADAR-key locks, Changing Places hoists and more — 15,000+ locations, free to search.',
   keywords: [
     'accessible toilets uk',
     'wheelchair accessible toilets',

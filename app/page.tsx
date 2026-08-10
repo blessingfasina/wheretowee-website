@@ -40,7 +40,7 @@ const HOMEPAGE_FAQS = [
     a: 'Yes. We tag every wheelchair-accessible toilet, every RADAR-key location, and every Changing Places facility (with hoist and adult-changing bench) that our community has confirmed. See our dedicated pages for Accessible Toilets, Changing Places, and the RADAR Key guide.',
   },
   {
-    q: 'Where do the 18,000+ toilet listings come from?',
+    q: 'Where do the 15,000+ toilet listings come from?',
     a: 'Our database is built from open data, partner councils, and the Where To Wee community. Every listing carries a verification badge — "Council verified", "Community verified", or "Recently confirmed" — plus a 0-100 confidence score so you know how trustworthy the info is.',
   },
   {
@@ -52,7 +52,7 @@ const HOMEPAGE_FAQS = [
 // Homepage stats — hidden until we have verified numbers worth showing publicly.
 const SHOW_HOMEPAGE_STATS = false;
 const stats = [
-  { label: 'Toilets Listed', value: '18,000+' },
+  { label: 'Toilets Listed', value: '15,000+' },
   { label: 'UK Cities Covered', value: '500+' },
   { label: 'Monthly Users', value: '50K+' },
   { label: 'User Ratings', value: '10K+' },
@@ -136,7 +136,7 @@ export default function HomePage() {
                 <span className="text-gradient">Near You</span>
               </h1>
               <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-xl mx-auto lg:mx-0">
-                Never get caught out again. Discover 18,000+ public toilets across the UK with
+                Never get caught out again. Discover 15,000+ public toilets across the UK with
                 accessibility info, ratings, and real-time availability.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -317,7 +317,7 @@ export default function HomePage() {
               </h2>
               <div className="space-y-4">
                 {[
-                  { icon: CheckCircle2, text: 'Largest UK toilet database with 18,000+ locations' },
+                  { icon: CheckCircle2, text: 'Largest UK toilet database with 15,000+ locations' },
                   { icon: Users, text: 'Community-driven with user ratings and reviews' },
                   { icon: Shield, text: 'Privacy-focused - no account required' },
                   { icon: Smartphone, text: 'Works offline once toilets are loaded' },

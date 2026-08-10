@@ -62,7 +62,7 @@ export default function Footer() {
               <span className="font-bold text-xl">Where To Wee</span>
             </Link>
             <p className="text-gray-400 text-sm mb-4">
-              Find clean, accessible public toilets near you across the UK. Free app with 18,000+ locations.
+              Find clean, accessible public toilets near you across the UK. Free app with 15,000+ locations.
             </p>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <MapPin className="w-4 h-4" />

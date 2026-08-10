@@ -210,7 +210,7 @@ export default function PressPage() {
               </div>
               
               <div className="bg-white border-2 border-gray-200 p-8 rounded-2xl">
-                <div className="text-5xl font-bold text-navy-800 mb-2">18,000+</div>
+                <div className="text-5xl font-bold text-navy-800 mb-2">15,000+</div>
                 <div className="text-gray-600 text-lg">Toilets mapped across the UK</div>
                 <div className="mt-4 text-sm text-gray-500">Source: Where To Wee database</div>
               </div>

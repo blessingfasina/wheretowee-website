@@ -190,7 +190,7 @@ export default function RadarKeyPage() {
                     Find an accessible toilet
                   </h3>
                   <p className="text-sm text-gray-600">
-                    Browse our city directory of 18,000+ UK toilets.
+                    Browse our city directory of 15,000+ UK toilets.
                   </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />

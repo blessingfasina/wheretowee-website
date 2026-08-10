@@ -31,7 +31,7 @@ const faqs = [
     questions: [
       {
         q: 'How do I find toilets near me?',
-        a: `Finding toilets near you is easy with Where To Wee. Simply visit our map page or download our free app, allow location access, and we'll show you the nearest public toilets. Our database includes over 18,000 toilets across the UK, including those in shopping centres, train stations, parks, and standalone public conveniences. You can filter results by accessibility, baby changing facilities, and whether they're free or paid.`,
+        a: `Finding toilets near you is easy with Where To Wee. Simply visit our map page or download our free app, allow location access, and we'll show you the nearest public toilets. Our database includes over 15,000 toilets across the UK, including those in shopping centres, train stations, parks, and standalone public conveniences. You can filter results by accessibility, baby changing facilities, and whether they're free or paid.`,
       },
       {
         q: 'How accurate is the "toilets near me" feature?',
