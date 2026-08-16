@@ -4,10 +4,11 @@ import { supabase } from '@/lib/supabase';
 /**
  * "Is this loo still here?" — feeds the same community-verification
  * pipeline the mobile app uses (`set_toilet_status` RPC + the
- * toilet_confirmations table). Two reversible answers per device:
+ * toilet_confirmations table). Reversible answers per device:
  *
  *   'exists'    → yes, still here
- *   'not_found' → no, it's gone / wrong place
+ *   'not_found' → no, it's closed / gone
+ *   null        → undo: clear this device's previous answer
  *
  * device_id is an anonymous UUID the browser stores in localStorage,
  * mirroring the app's SharedPreferences device id. A device only ever
@@ -23,9 +24,9 @@ export async function POST(request: NextRequest) {
     if (!device_id || typeof device_id !== 'string' || device_id.length > 64) {
       return NextResponse.json({ error: 'device_id is required' }, { status: 400 });
     }
-    if (status !== 'exists' && status !== 'not_found') {
+    if (status !== 'exists' && status !== 'not_found' && status !== null) {
       return NextResponse.json(
-        { error: "status must be 'exists' or 'not_found'" },
+        { error: "status must be 'exists', 'not_found' or null (undo)" },
         { status: 400 },
       );
     }

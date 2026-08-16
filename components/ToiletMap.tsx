@@ -388,6 +388,10 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   // "Is this loo still here?" state — one reversible answer per toilet
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [loStatusAnswers, setLoStatusAnswers] = useState<Record<number, 'exists' | 'not_found'>>({});
+  // Which toilet is showing the "temporarily or permanently closed?" follow-up
+  const [askClosureId, setAskClosureId] = useState<number | null>(null);
+  // Closure kind chosen per toilet (for the thank-you message)
+  const [closureAnswers, setClosureAnswers] = useState<Record<number, 'temporarily_closed' | 'permanently_closed'>>({});
 
   // Rating modal state
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -654,9 +658,9 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     return id;
   };
 
-  // "Is this loo still here?" Yes/No → same set_toilet_status pipeline
-  // as the mobile app. Answering again overwrites the previous answer.
-  const handleConfirmToilet = async (toilet: Toilet, status: 'exists' | 'not_found') => {
+  // "Is this loo still here?" → same set_toilet_status pipeline as the
+  // mobile app. `null` clears the device's previous answer (undo).
+  const handleConfirmToilet = async (toilet: Toilet, status: 'exists' | 'not_found' | null) => {
     setConfirmingId(toilet.id);
     try {
       const res = await fetch('/api/confirm', {
@@ -666,7 +670,19 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        setLoStatusAnswers((prev) => ({ ...prev, [toilet.id]: status }));
+        setLoStatusAnswers((prev) => {
+          const next = { ...prev };
+          if (status === null) delete next[toilet.id];
+          else next[toilet.id] = status;
+          return next;
+        });
+        if (status !== 'not_found') {
+          setClosureAnswers((prev) => {
+            const next = { ...prev };
+            delete next[toilet.id];
+            return next;
+          });
+        }
         // Reflect the answer locally so the trust badge updates
         // without a refetch.
         setToilets((prev) => prev.map((t) => t.id === toilet.id
@@ -674,9 +690,7 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
               ...t,
               confirmation_count: data.confirmation_count ?? t.confirmation_count,
               not_found_count: data.not_found_count ?? t.not_found_count,
-              last_confirmed_at: status === 'exists'
-                ? (data.last_confirmed_at ?? new Date().toISOString())
-                : t.last_confirmed_at,
+              last_confirmed_at: data.last_confirmed_at ?? null,
             }
           : t));
       }
@@ -684,6 +698,33 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
       console.error('Confirmation error:', error);
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  // "No, it's closed" follow-up: record the community answer AND file an
+  // inaccuracy report so the admin team sees whether it's temporary or
+  // permanent (same reports pipeline as the Report button).
+  const handleClosureAnswer = async (
+    toilet: Toilet,
+    kind: 'temporarily_closed' | 'permanently_closed',
+  ) => {
+    setAskClosureId(null);
+    setClosureAnswers((prev) => ({ ...prev, [toilet.id]: kind }));
+    await handleConfirmToilet(toilet, 'not_found');
+    try {
+      await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toilet_id: toilet.id,
+          type: kind,
+          details:
+            `Community answer from the website map: a visitor reported this toilet as ` +
+            `${kind === 'temporarily_closed' ? 'temporarily' : 'permanently'} closed.`,
+        }),
+      });
+    } catch (error) {
+      console.error('Closure report error:', error);
     }
   };
 
@@ -1416,74 +1457,6 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                         </div>
                       )}
 
-                      {/* Community "is this loo still here?" prompt — Yes/No,
-                          mirroring the app. Answering again changes the answer. */}
-                      <div className="bg-teal-50 border border-teal-200 rounded-lg px-3 py-2.5">
-                        {loStatusAnswers[toilet.id] === 'exists' ? (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                            <span className="text-emerald-700 text-xs font-medium">
-                              Thanks! You confirmed this loo is still here.
-                            </span>
-                          </div>
-                        ) : loStatusAnswers[toilet.id] === 'not_found' ? (
-                          <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                            <span className="text-red-600 text-xs font-medium">
-                              Thanks! You reported this loo as no longer there — we&apos;ll look into it.
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="text-xs font-semibold text-teal-800 mb-2">
-                              Been here recently? Is this loo still here?
-                            </p>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleConfirmToilet(toilet, 'exists');
-                                }}
-                                disabled={confirmingId === toilet.id}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 rounded-lg px-3 py-2 hover:bg-emerald-600 transition-colors disabled:opacity-60"
-                              >
-                                {confirmingId === toilet.id ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <ThumbsUp className="w-3.5 h-3.5" />
-                                )}
-                                Yes, still here
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleConfirmToilet(toilet, 'not_found');
-                                }}
-                                disabled={confirmingId === toilet.id}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-600 bg-white border border-red-300 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors disabled:opacity-60"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                                No, it&apos;s gone
-                              </button>
-                            </div>
-                          </>
-                        )}
-                        {(loStatusAnswers[toilet.id]) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConfirmToilet(
-                                toilet,
-                                loStatusAnswers[toilet.id] === 'exists' ? 'not_found' : 'exists',
-                              );
-                            }}
-                            disabled={confirmingId === toilet.id}
-                            className="mt-1.5 text-[11px] text-teal-700 underline underline-offset-2 hover:text-teal-900 disabled:opacity-60"
-                          >
-                            Change my answer
-                          </button>
-                        )}
-                      </div>
                     </div>
                     
                     {/* Action Buttons */}
@@ -1551,6 +1524,128 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                         <AlertTriangle className="w-4 h-4" />
                         Report
                       </button>
+                    </div>
+
+                    {/* Community "is this loo still here?" prompt — Yes/No
+                        with a temporary/permanent follow-up and undo. */}
+                    <div className="mt-3 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2.5">
+                      {loStatusAnswers[toilet.id] === 'exists' ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                            <span className="text-emerald-700 text-xs font-medium">
+                              Thanks! You confirmed this loo is still here.
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleConfirmToilet(toilet, null);
+                            }}
+                            disabled={confirmingId === toilet.id}
+                            className="text-[11px] font-semibold text-teal-700 border border-teal-300 rounded-md px-2 py-1 hover:bg-teal-100 transition-colors disabled:opacity-60 flex-shrink-0"
+                          >
+                            Undo
+                          </button>
+                        </div>
+                      ) : loStatusAnswers[toilet.id] === 'not_found' ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                            <span className="text-red-600 text-xs font-medium">
+                              Thanks! You reported this loo as{' '}
+                              {closureAnswers[toilet.id] === 'permanently_closed'
+                                ? 'permanently closed'
+                                : closureAnswers[toilet.id] === 'temporarily_closed'
+                                ? 'temporarily closed'
+                                : 'closed'} — we&apos;ll look into it.
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleConfirmToilet(toilet, null);
+                            }}
+                            disabled={confirmingId === toilet.id}
+                            className="text-[11px] font-semibold text-teal-700 border border-teal-300 rounded-md px-2 py-1 hover:bg-teal-100 transition-colors disabled:opacity-60 flex-shrink-0"
+                          >
+                            Undo
+                          </button>
+                        </div>
+                      ) : askClosureId === toilet.id ? (
+                        <>
+                          <p className="text-xs font-semibold text-teal-800 mb-2">
+                            Is it temporarily or permanently closed?
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleClosureAnswer(toilet, 'temporarily_closed');
+                              }}
+                              disabled={confirmingId === toilet.id}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-700 bg-white border border-amber-300 rounded-lg px-3 py-2 hover:bg-amber-50 transition-colors disabled:opacity-60"
+                            >
+                              <Clock className="w-3.5 h-3.5" />
+                              Temporarily closed
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleClosureAnswer(toilet, 'permanently_closed');
+                              }}
+                              disabled={confirmingId === toilet.id}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-600 bg-white border border-red-300 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors disabled:opacity-60"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Permanently closed
+                            </button>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAskClosureId(null);
+                            }}
+                            className="mt-1.5 text-[11px] text-teal-700 underline underline-offset-2 hover:text-teal-900"
+                          >
+                            Back
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs font-semibold text-teal-800 mb-2">
+                            Been here recently? Is this loo still here?
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConfirmToilet(toilet, 'exists');
+                              }}
+                              disabled={confirmingId === toilet.id}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 rounded-lg px-3 py-2 hover:bg-emerald-600 transition-colors disabled:opacity-60"
+                            >
+                              {confirmingId === toilet.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <ThumbsUp className="w-3.5 h-3.5" />
+                              )}
+                              Yes, still here
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAskClosureId(toilet.id);
+                              }}
+                              disabled={confirmingId === toilet.id}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-600 bg-white border border-red-300 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors disabled:opacity-60"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              No, it&apos;s closed
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
