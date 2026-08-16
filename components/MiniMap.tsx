@@ -9,19 +9,19 @@ import { Navigation } from 'lucide-react';
  * pages) and user perception (no visual anchor at the top of the
  * page). A 600x300 PNG with a marker addresses both.
  *
- * We use OpenStreetMap's free static map service: no API key, no
- * signup, no per-request fee, attribution-only. Reliable enough for
- * our traffic and consistent with the OSM tiles we already use on
- * /map. If usage ever outgrows the upstream's rate limit, swap the
- * `staticMapUrl` builder for Mapbox / Stadia and add the token via
- * env var — the rest of the component stays identical.
+ * The image comes from our own /api/staticmap endpoint, which
+ * stitches OpenStreetMap tiles server-side and draws the marker.
+ * We previously used staticmap.openstreetmap.de, but that free
+ * third-party service was shut down (the hostname no longer
+ * resolves), silently breaking the preview on every detail page —
+ * self-hosting removes that whole class of failure. No API key, and
+ * the endpoint caches aggressively so tile traffic is one-off.
  *
  * The image is plain `<img>` (not `next/image`) on purpose:
- *   - the staticmap host doesn't need to be added to remotePatterns;
  *   - we want simple lazy loading without going through Vercel's
- *     image optimiser (these are already small, ~30-50 KB);
- *   - if the upstream is unreachable, the browser shows alt text and
- *     the page still renders cleanly — no Next.js build error.
+ *     image optimiser (the endpoint already returns a small PNG);
+ *   - if generation ever fails, the browser shows alt text and the
+ *     page still renders cleanly — no Next.js build error.
  *
  * Wrapped in a `<Link>` to `/map` so a tap takes the user straight
  * to the interactive view centred on this toilet — best UX for a
@@ -38,17 +38,17 @@ export interface MiniMapProps {
   className?: string;
 }
 
-/// Build the upstream static-map URL. Centralised so the swap to a
-/// paid provider later is a one-line change.
+/// Build the static-map URL. Centralised so a provider swap stays a
+/// one-line change.
 function staticMapUrl({ lat, lng, zoom }: { lat: number; lng: number; zoom: number }): string {
   const params = new URLSearchParams({
-    center: `${lat},${lng}`,
+    lat: String(lat),
+    lng: String(lng),
     zoom: String(zoom),
-    size: '600x300',
-    maptype: 'mapnik',
-    markers: `${lat},${lng},red-pushpin`,
+    w: '600',
+    h: '300',
   });
-  return `https://staticmap.openstreetmap.de/staticmap.php?${params.toString()}`;
+  return `/api/staticmap?${params.toString()}`;
 }
 
 export default function MiniMap({ lat, lng, alt, zoom = 16, className }: MiniMapProps) {
