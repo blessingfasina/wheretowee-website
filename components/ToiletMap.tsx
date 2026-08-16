@@ -166,6 +166,7 @@ export interface Toilet {
   rating_count?: number | null;
   operator_name?: string | null;
   confirmation_count?: number | null;
+  not_found_count?: number | null;
   last_confirmed_at?: string | null;
 }
 
@@ -384,9 +385,9 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const deepLinkHandled = useRef(false);
   const [copiedToiletId, setCopiedToiletId] = useState<number | null>(null);
 
-  // "Confirm this loo" state
+  // "Is this loo still here?" state — one reversible answer per toilet
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
-  const [confirmedIds, setConfirmedIds] = useState<Set<number>>(new Set());
+  const [loStatusAnswers, setLoStatusAnswers] = useState<Record<number, 'exists' | 'not_found'>>({});
 
   // Rating modal state
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -653,25 +654,29 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     return id;
   };
 
-  // "Confirm this loo still exists" → community-verification pipeline.
-  const handleConfirmToilet = async (toilet: Toilet) => {
+  // "Is this loo still here?" Yes/No → same set_toilet_status pipeline
+  // as the mobile app. Answering again overwrites the previous answer.
+  const handleConfirmToilet = async (toilet: Toilet, status: 'exists' | 'not_found') => {
     setConfirmingId(toilet.id);
     try {
       const res = await fetch('/api/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toilet_id: toilet.id, device_id: getDeviceId() }),
+        body: JSON.stringify({ toilet_id: toilet.id, device_id: getDeviceId(), status }),
       });
       if (res.ok) {
         const data = await res.json();
-        setConfirmedIds((prev) => new Set(prev).add(toilet.id));
-        // Reflect the confirmation locally so the trust badge updates
+        setLoStatusAnswers((prev) => ({ ...prev, [toilet.id]: status }));
+        // Reflect the answer locally so the trust badge updates
         // without a refetch.
         setToilets((prev) => prev.map((t) => t.id === toilet.id
           ? {
               ...t,
-              confirmation_count: data.confirmation_count ?? ((t.confirmation_count ?? 0) + 1),
-              last_confirmed_at: data.last_confirmed_at ?? new Date().toISOString(),
+              confirmation_count: data.confirmation_count ?? t.confirmation_count,
+              not_found_count: data.not_found_count ?? t.not_found_count,
+              last_confirmed_at: status === 'exists'
+                ? (data.last_confirmed_at ?? new Date().toISOString())
+                : t.last_confirmed_at,
             }
           : t));
       }
@@ -1411,31 +1416,74 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                         </div>
                       )}
 
-                      {/* Community confirmation prompt */}
-                      {confirmedIds.has(toilet.id) ? (
-                        <div className="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                          <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                          <span className="text-emerald-700 text-xs font-medium">
-                            Thanks! Marked as still here — this helps keep the map accurate.
-                          </span>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleConfirmToilet(toilet);
-                          }}
-                          disabled={confirmingId === toilet.id}
-                          className="flex items-center gap-2 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 hover:bg-teal-100 transition-colors disabled:opacity-60"
-                        >
-                          {confirmingId === toilet.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <ThumbsUp className="w-4 h-4" />
-                          )}
-                          Been here recently? Confirm this loo still exists
-                        </button>
-                      )}
+                      {/* Community "is this loo still here?" prompt — Yes/No,
+                          mirroring the app. Answering again changes the answer. */}
+                      <div className="bg-teal-50 border border-teal-200 rounded-lg px-3 py-2.5">
+                        {loStatusAnswers[toilet.id] === 'exists' ? (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                            <span className="text-emerald-700 text-xs font-medium">
+                              Thanks! You confirmed this loo is still here.
+                            </span>
+                          </div>
+                        ) : loStatusAnswers[toilet.id] === 'not_found' ? (
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                            <span className="text-red-600 text-xs font-medium">
+                              Thanks! You reported this loo as no longer there — we&apos;ll look into it.
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-xs font-semibold text-teal-800 mb-2">
+                              Been here recently? Is this loo still here?
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConfirmToilet(toilet, 'exists');
+                                }}
+                                disabled={confirmingId === toilet.id}
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-emerald-500 rounded-lg px-3 py-2 hover:bg-emerald-600 transition-colors disabled:opacity-60"
+                              >
+                                {confirmingId === toilet.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <ThumbsUp className="w-3.5 h-3.5" />
+                                )}
+                                Yes, still here
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleConfirmToilet(toilet, 'not_found');
+                                }}
+                                disabled={confirmingId === toilet.id}
+                                className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-red-600 bg-white border border-red-300 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors disabled:opacity-60"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                No, it&apos;s gone
+                              </button>
+                            </div>
+                          </>
+                        )}
+                        {(loStatusAnswers[toilet.id]) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleConfirmToilet(
+                                toilet,
+                                loStatusAnswers[toilet.id] === 'exists' ? 'not_found' : 'exists',
+                              );
+                            }}
+                            disabled={confirmingId === toilet.id}
+                            className="mt-1.5 text-[11px] text-teal-700 underline underline-offset-2 hover:text-teal-900 disabled:opacity-60"
+                          >
+                            Change my answer
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     {/* Action Buttons */}
