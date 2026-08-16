@@ -91,7 +91,7 @@ const features = [
   },
 ];
 
-const cities = [
+const cities: Array<{ name: string; count: number; partner?: boolean }> = [
   { name: 'London', count: 2500 },
   { name: 'Birmingham', count: 450 },
   { name: 'Manchester', count: 380 },
@@ -99,7 +99,8 @@ const cities = [
   { name: 'Glasgow', count: 290 },
   { name: 'Liverpool', count: 260 },
   { name: 'Bristol', count: 240 },
-  { name: 'Sheffield', count: 220 },
+  // Live count (Aug 2026) — official data partner: Brighton & Hove City Council
+  { name: 'Brighton', count: 117, partner: true },
 ];
 
 const howItWorks = [
@@ -292,6 +293,11 @@ export default function HomePage() {
                       {city.name}
                     </h3>
                     <p className="text-sm text-gray-500">{city.count.toLocaleString()} toilets</p>
+                    {city.partner && (
+                      <p className="mt-1 inline-block text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5">
+                        Council partner
+                      </p>
+                    )}
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-mint-500 transition-colors" />
                 </div>
