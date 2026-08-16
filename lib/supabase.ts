@@ -411,6 +411,36 @@ export async function getNearbyToilets(
   return data || [];
 }
 
+/**
+ * Merge trust-signal and accessibility columns into toilets fetched via
+ * the nearby RPC (which only returns base columns). One batched select
+ * by id — covers verified_source ("Council verified" badge), Changing
+ * Places fields, gender_neutral, and the public "update from the team"
+ * note. Soft-fails to the original rows so the map always renders.
+ */
+export async function enrichToiletsForMap(toilets: Toilet[]): Promise<Toilet[]> {
+  if (toilets.length === 0) return toilets;
+  try {
+    const tableName = await getActiveToiletTable();
+    const ids = toilets.map((t) => t.id);
+    const { data, error } = await supabase
+      .from(tableName)
+      .select(
+        'id, verified_source, verified_at, hoist, adult_changing, gender_neutral, ' +
+        'public_note, public_note_at, average_rating, rating_count, operator_name',
+      )
+      .in('id', ids);
+    if (error || !data) return toilets;
+    const byId = new Map<number, Partial<Toilet>>(
+      (data as unknown as Array<Partial<Toilet> & { id: number }>).map((row) => [row.id, row]),
+    );
+    return toilets.map((t) => ({ ...t, ...(byId.get(t.id) ?? {}) }));
+  } catch (e) {
+    console.error('enrichToiletsForMap failed:', e);
+    return toilets;
+  }
+}
+
 export async function getToiletsByCity(city: string, limit: number = 100): Promise<Toilet[]> {
   const tableName = await getActiveToiletTable();
 

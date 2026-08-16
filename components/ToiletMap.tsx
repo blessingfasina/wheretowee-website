@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X, Target, Crosshair, Star, ChevronDown, ChevronUp, Clock, Key, Info, CheckCircle } from 'lucide-react';
+import { Navigation, Accessibility, Baby, Coins, ExternalLink, MapPin, Loader2, LocateFixed, Search, Plus, AlertTriangle, X, Target, Crosshair, Star, ChevronDown, ChevronUp, Clock, Key, Info, CheckCircle, ShieldCheck, Megaphone, Heart, Share2, ThumbsUp, Handshake } from 'lucide-react';
 import { trackGetDirections, trackMapSearch, trackInaccuracyReport } from '@/lib/analytics';
+import { resolveVerificationTier, type VerificationTier } from '@/lib/supabase';
 
 // Custom toilet marker - Standard
 const ToiletIcon = L.divIcon({
@@ -34,6 +35,107 @@ const FreeIcon = L.divIcon({
   popupAnchor: [0, -16],
 });
 
+// Council-verified marker — sky blue with a badge ring so official data
+// stands out from community entries at a glance.
+const CouncilIcon = L.divIcon({
+  className: 'custom-toilet-marker',
+  html: `<div style="position: relative; background: #0284C7; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 0 0 2px #0284C7, 0 2px 6px rgba(0,0,0,0.35); font-size: 14px;">🚻<div style="position: absolute; top: -5px; right: -5px; background: white; border-radius: 50%; width: 15px; height: 15px; display: flex; align-items: center; justify-content: center; font-size: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">✔️</div></div>`,
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+  popupAnchor: [0, -17],
+});
+
+// Temporarily-closed marker — greyed out with a warning dot.
+const ClosedIcon = L.divIcon({
+  className: 'custom-toilet-marker',
+  html: `<div style="position: relative; background: #9CA3AF; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-size: 14px; opacity: 0.9;">🚻<div style="position: absolute; top: -5px; right: -5px; background: #F59E0B; color: white; border-radius: 50%; width: 15px; height: 15px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">!</div></div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+  popupAnchor: [0, -16],
+});
+
+// Cluster marker — navy bubble with the number of toilets inside.
+const clusterIcon = (count: number) => {
+  const size = count >= 20 ? 46 : count >= 10 ? 42 : 38;
+  return L.divIcon({
+    className: 'toilet-cluster-marker',
+    html: `<div style="background: #1E3A5F; color: white; width: ${size}px; height: ${size}px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 0 0 2px rgba(30,58,95,0.35), 0 2px 8px rgba(0,0,0,0.35); font-size: 13px; font-weight: 700;">${count}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+};
+
+interface MarkerCluster {
+  lat: number;
+  lng: number;
+  toilets: Toilet[];
+}
+
+// Stop clustering once the user is zoomed in close enough to tell
+// neighbouring toilets apart.
+const CLUSTER_MAX_ZOOM = 15;
+
+/**
+ * Tiny grid-based clusterer. With max 50 markers on this map a
+ * full clustering library is overkill — bucket markers into cells
+ * sized relative to the current zoom, and any cell with 3+ toilets
+ * becomes a numbered cluster bubble.
+ */
+function clusterToilets(
+  toilets: Toilet[],
+  zoom: number,
+): { clusters: MarkerCluster[]; singles: Toilet[] } {
+  if (zoom > CLUSTER_MAX_ZOOM) return { clusters: [], singles: toilets };
+  const cellDeg = 360 / Math.pow(2, zoom + 2); // roughly a quarter map tile
+  const cells = new Map<string, Toilet[]>();
+  for (const t of toilets) {
+    const key = `${Math.floor(t.latitude / cellDeg)}:${Math.floor(t.longitude / cellDeg)}`;
+    const bucket = cells.get(key);
+    if (bucket) bucket.push(t);
+    else cells.set(key, [t]);
+  }
+  const clusters: MarkerCluster[] = [];
+  const singles: Toilet[] = [];
+  for (const group of Array.from(cells.values())) {
+    if (group.length >= 3) {
+      clusters.push({
+        lat: group.reduce((s: number, t: Toilet) => s + t.latitude, 0) / group.length,
+        lng: group.reduce((s: number, t: Toilet) => s + t.longitude, 0) / group.length,
+        toilets: group,
+      });
+    } else {
+      singles.push(...group);
+    }
+  }
+  return { clusters, singles };
+}
+
+// Reports the current zoom level up to the parent so clustering can
+// re-bucket as the user zooms in and out.
+function ZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    onZoomChange(map.getZoom());
+    const handler = () => onZoomChange(map.getZoom());
+    map.on('zoomend', handler);
+    return () => {
+      map.off('zoomend', handler);
+    };
+  }, [map, onZoomChange]);
+  return null;
+}
+
+// Fly to a position at a specific zoom (used when a cluster is clicked).
+function FlyToZoom({ target }: { target: { pos: [number, number]; zoom: number; seq: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) {
+      map.flyTo(target.pos, target.zoom, { duration: 0.5 });
+    }
+  }, [map, target]);
+  return null;
+}
+
 export interface Toilet {
   id: number;
   name: string;
@@ -54,6 +156,17 @@ export interface Toilet {
   men?: string | null;
   women?: string | null;
   unisex?: string | null;
+  // Trust signals + expanded accessibility (merged in by /api/toilets)
+  verified_source?: string | null;   // 'council' | 'partner' | 'official'
+  hoist?: string | null;             // Changing Places hoist
+  adult_changing?: string | null;
+  gender_neutral?: string | null;
+  public_note?: string | null;       // "update from the team" (e.g. closures)
+  public_note_at?: string | null;
+  rating_count?: number | null;
+  operator_name?: string | null;
+  confirmation_count?: number | null;
+  last_confirmed_at?: string | null;
 }
 
 // Calculate distance using Haversine formula
@@ -228,6 +341,8 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     free: false,
     openNow: false,
     radarKey: false,
+    changingPlaces: false,
+    verified: false,
   });
 
   // Search state
@@ -253,6 +368,25 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
 
   // Expanded toilet state
   const [expandedToiletId, setExpandedToiletId] = useState<number | null>(null);
+
+  // Clustering state — current map zoom, updated by ZoomTracker
+  const [mapZoom, setMapZoom] = useState(14);
+  const [clusterFlyTarget, setClusterFlyTarget] = useState<{ pos: [number, number]; zoom: number; seq: number } | null>(null);
+
+  // Shareable-link state (/map?toilet=1234). Read once, synchronously —
+  // this component is client-only so window exists on first render.
+  const [deepLinkId] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const raw = new URLSearchParams(window.location.search).get('toilet');
+    const n = raw ? parseInt(raw, 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+  const deepLinkHandled = useRef(false);
+  const [copiedToiletId, setCopiedToiletId] = useState<number | null>(null);
+
+  // "Confirm this loo" state
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [confirmedIds, setConfirmedIds] = useState<Set<number>>(new Set());
 
   // Rating modal state
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -434,16 +568,25 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     }
   };
 
-  const fetchToilets = useCallback(async (lat: number, lng: number) => {
+  const fetchToilets = useCallback(async (lat: number, lng: number, ensureToilet?: Toilet) => {
     try {
       const response = await fetch(`/api/toilets?lat=${lat}&lng=${lng}&radius=5&limit=50`);
       const data = await response.json();
 
       // Calculate distance for each toilet
-      const toiletsWithDistance = (data.toilets || []).map((toilet: Toilet) => ({
+      let toiletsWithDistance = (data.toilets || []).map((toilet: Toilet) => ({
         ...toilet,
         distance: calculateDistance(lat, lng, toilet.latitude, toilet.longitude),
       }));
+
+      // Guarantee a deep-linked toilet is present even if the nearby
+      // query missed it (e.g. radius edge cases).
+      if (ensureToilet && !toiletsWithDistance.some((t: Toilet) => t.id === ensureToilet.id)) {
+        toiletsWithDistance = [
+          { ...ensureToilet, distance: calculateDistance(lat, lng, ensureToilet.latitude, ensureToilet.longitude) },
+          ...toiletsWithDistance,
+        ];
+      }
 
       // Sort by distance
       toiletsWithDistance.sort((a: Toilet, b: Toilet) => (a.distance || 0) - (b.distance || 0));
@@ -463,19 +606,120 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
     fetchToilets(lat, lng);
   }, [fetchToilets]);
 
+  // Handle a shared /map?toilet=1234 link: fetch that toilet, fly to it,
+  // load its neighbourhood, and expand its card.
+  useEffect(() => {
+    if (!deepLinkId || deepLinkHandled.current) return;
+    deepLinkHandled.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/toilets?id=${deepLinkId}`);
+        if (!res.ok) return;
+        const { toilet } = await res.json();
+        if (!toilet) return;
+        setSelectedToilet([toilet.latitude, toilet.longitude]);
+        setExpandedToiletId(toilet.id);
+        await fetchToilets(toilet.latitude, toilet.longitude, toilet);
+      } catch (error) {
+        console.error('Deep link error:', error);
+      }
+    })();
+  }, [deepLinkId, fetchToilets]);
+
+  // Copy (or natively share) a link that reopens the map on this toilet.
+  const shareToilet = async (toilet: Toilet) => {
+    const url = `${window.location.origin}/map?toilet=${toilet.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${toilet.name} — Where To Wee`, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopiedToiletId(toilet.id);
+      setTimeout(() => setCopiedToiletId(null), 2000);
+    } catch {
+      // user dismissed the share sheet — nothing to do
+    }
+  };
+
+  // Anonymous per-browser id, mirroring the app's device id, so the
+  // confirm_toilet RPC can dedupe one confirmation per device.
+  const getDeviceId = (): string => {
+    let id = localStorage.getItem('wtw_device_id');
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem('wtw_device_id', id);
+    }
+    return id;
+  };
+
+  // "Confirm this loo still exists" → community-verification pipeline.
+  const handleConfirmToilet = async (toilet: Toilet) => {
+    setConfirmingId(toilet.id);
+    try {
+      const res = await fetch('/api/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toilet_id: toilet.id, device_id: getDeviceId() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConfirmedIds((prev) => new Set(prev).add(toilet.id));
+        // Reflect the confirmation locally so the trust badge updates
+        // without a refetch.
+        setToilets((prev) => prev.map((t) => t.id === toilet.id
+          ? {
+              ...t,
+              confirmation_count: data.confirmation_count ?? ((t.confirmation_count ?? 0) + 1),
+              last_confirmed_at: data.last_confirmed_at ?? new Date().toISOString(),
+            }
+          : t));
+      }
+    } catch (error) {
+      console.error('Confirmation error:', error);
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
   const filteredToilets = toilets.filter((toilet) => {
     if (filters.accessible && toilet.wheelchair !== 'yes') return false;
     if (filters.babyChanging && toilet.baby_changing !== 'yes') return false;
     if (filters.free && toilet.fee !== 'no' && toilet.fee !== 'free') return false;
     if (filters.openNow && isOpenNow(toilet.opening_hours) !== true) return false;
     if (filters.radarKey && toilet.radar_key !== 'yes') return false;
+    if (filters.changingPlaces && toilet.hoist !== 'yes') return false;
+    if (filters.verified && verificationTier(toilet) === 'unverified') return false;
     return true;
   });
 
   // Get top 7 closest
   const closestToilets = filteredToilets.slice(0, 7);
 
+  // Bucket markers into clusters at the current zoom level.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { clusters, singles } = useMemo(
+    () => clusterToilets(filteredToilets, mapZoom),
+    // filteredToilets is derived fresh each render; toilets + filters are
+    // its real inputs.
+    [toilets, filters, mapZoom],
+  );
+
+  // Council partners represented in the current results — drives the
+  // "Data partner" attribution strip under the map.
+  const councilPartners = useMemo(() => {
+    const names = new Set<string>();
+    for (const t of toilets) {
+      if (t.verified_source === 'council' && t.operator_name) {
+        names.add(t.operator_name);
+      }
+    }
+    return Array.from(names);
+  }, [toilets]);
+
   const getIcon = (toilet: Toilet) => {
+    if (isTemporarilyClosed(toilet)) return ClosedIcon;
+    if (isCouncilVerified(toilet)) return CouncilIcon;
     if (toilet.fee === 'no' || toilet.fee === 'free') return FreeIcon;
     if (toilet.wheelchair === 'yes') return AccessibleIcon;
     return ToiletIcon;
@@ -489,7 +733,43 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
   const isAccessible = (toilet: Toilet) => toilet.wheelchair === 'yes';
   const hasBabyChange = (toilet: Toilet) => toilet.baby_changing === 'yes';
   const needsRadarKey = (toilet: Toilet) => toilet.radar_key === 'yes';
-  const isVerified = (toilet: Toilet) => !!toilet.verified_at;
+  const isChangingPlaces = (toilet: Toilet) => toilet.hoist === 'yes';
+  const isGenderNeutral = (toilet: Toilet) => toilet.gender_neutral === 'yes';
+  const verificationTier = (toilet: Toilet): VerificationTier => resolveVerificationTier(toilet);
+  const isCouncilVerified = (toilet: Toilet) => verificationTier(toilet) === 'council_verified';
+  const isTemporarilyClosed = (toilet: Toilet) =>
+    !!toilet.public_note && /closed/i.test(toilet.public_note);
+  const hasRating = (toilet: Toilet) =>
+    (toilet.rating_count ?? 0) > 0 && (toilet.average_rating ?? 0) > 0;
+
+  // Single source of truth for the trust badge shown on cards + popups.
+  const VerificationBadge = ({ toilet, size = 'sm' }: { toilet: Toilet; size?: 'sm' | 'xs' }) => {
+    const tier = verificationTier(toilet);
+    if (tier === 'unverified') return null;
+    const cls = size === 'xs' ? 'text-xs px-2 py-0.5' : 'text-xs px-2 py-1';
+    if (tier === 'council_verified') {
+      return (
+        <span className={`inline-flex items-center gap-1 bg-sky-100 text-sky-700 rounded-full font-semibold ${cls}`}>
+          <ShieldCheck className="w-3 h-3" />
+          Council verified
+        </span>
+      );
+    }
+    if (tier === 'community_verified') {
+      return (
+        <span className={`inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 rounded-full font-medium ${cls}`}>
+          <CheckCircle className="w-3 h-3" />
+          Community verified
+        </span>
+      );
+    }
+    return (
+      <span className={`inline-flex items-center gap-1 bg-teal-50 text-teal-600 rounded-full font-medium ${cls}`}>
+        <CheckCircle className="w-3 h-3" />
+        Recently confirmed
+      </span>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -552,6 +832,30 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
           >
             <Key className="w-4 h-4" />
             RADAR
+          </button>
+          <button
+            onClick={() => setFilters((f) => ({ ...f, changingPlaces: !f.changingPlaces }))}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              filters.changingPlaces
+                ? 'bg-rose-500 text-white shadow-md'
+                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-rose-400'
+            }`}
+            title="Changing Places toilets with hoist and adult changing bench"
+          >
+            <Heart className="w-4 h-4" />
+            Changing Places
+          </button>
+          <button
+            onClick={() => setFilters((f) => ({ ...f, verified: !f.verified }))}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+              filters.verified
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-sky-400'
+            }`}
+            title="Only show council-verified, community-verified or recently confirmed toilets"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            Verified
           </button>
 
           {/* High Accuracy Toggle */}
@@ -636,15 +940,21 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <LocationHandler 
-              onLocationFound={handleLocationFound} 
-              onLocating={handleLocating}
-              refreshTrigger={refreshTrigger}
-              highAccuracy={highAccuracyMode}
-              onAccuracyDetected={handleAccuracyDetected}
-            />
+            {/* Skip auto-locate when following a shared toilet link; the
+                "My Location" button (refreshTrigger) re-enables it. */}
+            {(!deepLinkId || refreshTrigger > 0) && (
+              <LocationHandler 
+                onLocationFound={handleLocationFound} 
+                onLocating={handleLocating}
+                refreshTrigger={refreshTrigger}
+                highAccuracy={highAccuracyMode}
+                onAccuracyDetected={handleAccuracyDetected}
+              />
+            )}
             <FlyToLocation position={selectedToilet} />
             <FlyToSearch position={searchLocation} onComplete={handleSearchComplete} />
+            <ZoomTracker onZoomChange={setMapZoom} />
+            <FlyToZoom target={clusterFlyTarget} />
 
             {/* User location marker */}
             {userLocation && (
@@ -674,8 +984,24 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
               </>
             )}
 
-            {/* Toilet markers - only show top 10 for performance */}
-            {filteredToilets.slice(0, 10).map((toilet) => (
+            {/* Cluster bubbles — click to zoom in */}
+            {clusters.map((cluster, i) => (
+              <Marker
+                key={`cluster-${i}-${cluster.toilets[0]?.id}`}
+                position={[cluster.lat, cluster.lng]}
+                icon={clusterIcon(cluster.toilets.length)}
+                eventHandlers={{
+                  click: () => setClusterFlyTarget({
+                    pos: [cluster.lat, cluster.lng],
+                    zoom: Math.min(mapZoom + 2, CLUSTER_MAX_ZOOM + 1),
+                    seq: Date.now(),
+                  }),
+                }}
+              />
+            ))}
+
+            {/* Individual toilet markers */}
+            {singles.map((toilet) => (
               <Marker
                 key={toilet.id}
                 position={[toilet.latitude, toilet.longitude]}
@@ -687,7 +1013,13 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                     {toilet.address && (
                       <p className="text-xs text-gray-500 mb-2">{toilet.address}</p>
                     )}
+                    {isTemporarilyClosed(toilet) && (
+                      <p className="text-xs font-semibold text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">
+                        ⚠️ Temporarily closed
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1 mb-2">
+                      <VerificationBadge toilet={toilet} size="xs" />
                       {isAccessible(toilet) ? (
                         <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
                           ♿ Accessible
@@ -732,6 +1064,10 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
         {/* Legend */}
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-600">
           <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 bg-sky-600 rounded-full ring-2 ring-sky-300"></span>
+            Council verified
+          </span>
+          <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 bg-emerald-500 rounded-full"></span>
             Free
           </span>
@@ -743,7 +1079,23 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
             <span className="w-3 h-3 bg-navy-600 rounded-full"></span>
             Standard
           </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
+            Temporarily closed
+          </span>
         </div>
+
+        {/* Data partner attribution — shown when council-verified listings
+            are in view (e.g. Brighton & Hove) */}
+        {councilPartners.length > 0 && (
+          <div className="mt-3 flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2 text-xs text-sky-800">
+            <Handshake className="w-4 h-4 text-sky-600 flex-shrink-0" />
+            <span>
+              <span className="font-semibold">Data partner:</span>{' '}
+              {councilPartners.join(', ')} — official facility data supplied directly to Where To Wee.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Closest Toilets List */}
@@ -841,8 +1193,25 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                         <p className="text-sm text-gray-500 truncate mt-0.5">{toilet.address}</p>
                       )}
 
+                      {/* Temporarily closed notice */}
+                      {isTemporarilyClosed(toilet) && (
+                        <p className="inline-flex items-center gap-1 mt-1.5 text-xs font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          Temporarily closed
+                        </p>
+                      )}
+
                       {/* Features */}
                       <div className="flex flex-wrap gap-1.5 mt-2">
+                        <VerificationBadge toilet={toilet} />
+                        {/* Rating */}
+                        {hasRating(toilet) && (
+                          <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-full font-medium">
+                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                            {(toilet.average_rating ?? 0).toFixed(1)}
+                            <span className="text-amber-500">({toilet.rating_count})</span>
+                          </span>
+                        )}
                         {/* Open/Closed Status */}
                         {toilet.opening_hours && (
                           <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${
@@ -881,10 +1250,10 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                             RADAR
                           </span>
                         )}
-                        {isVerified(toilet) && (
-                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 text-xs px-2 py-1 rounded-full font-medium">
-                            <CheckCircle className="w-3 h-3" />
-                            Verified
+                        {isChangingPlaces(toilet) && (
+                          <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded-full font-medium">
+                            <Heart className="w-3 h-3" />
+                            Changing Places
                           </span>
                         )}
                       </div>
@@ -919,6 +1288,17 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                   <div className="px-4 pb-4 pt-0 border-t border-gray-100">
                     {/* Detailed Information */}
                     <div className="mt-3 space-y-3">
+                      {/* Update from the team (e.g. temporary closures) */}
+                      {toilet.public_note && (
+                        <div className="flex items-start gap-2 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <Megaphone className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-semibold text-amber-800 mb-0.5">Update from the team</p>
+                            <p className="text-xs text-amber-700 leading-relaxed">{toilet.public_note}</p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Open Status & Hours */}
                       {toilet.opening_hours && (
                         <div className="flex items-start gap-2 text-sm">
@@ -969,7 +1349,7 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                       )}
                       
                       {/* Gender Info */}
-                      {(toilet.men === 'yes' || toilet.women === 'yes' || toilet.unisex === 'yes') && (
+                      {(toilet.men === 'yes' || toilet.women === 'yes' || toilet.unisex === 'yes' || isGenderNeutral(toilet)) && (
                         <div className="flex items-center gap-2 text-sm">
                           <Info className="w-4 h-4 text-gray-400 flex-shrink-0" />
                           <div className="flex flex-wrap gap-1">
@@ -982,7 +1362,20 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                             {toilet.unisex === 'yes' && (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-600">Unisex</span>
                             )}
+                            {isGenderNeutral(toilet) && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-600">Gender Neutral</span>
+                            )}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Changing Places details */}
+                      {isChangingPlaces(toilet) && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Heart className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">
+                            Changing Places: hoist{toilet.adult_changing === 'yes' ? ' + adult changing bench' : ''}
+                          </span>
                         </div>
                       )}
                       
@@ -994,12 +1387,54 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                         </div>
                       )}
                       
-                      {/* Verified Badge */}
-                      {isVerified(toilet) && (
+                      {/* Trust / verification row */}
+                      {verificationTier(toilet) !== 'unverified' && (
                         <div className="flex items-center gap-2 text-sm">
-                          <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                          <span className="text-emerald-600 text-xs font-medium">Verified location</span>
+                          {verificationTier(toilet) === 'council_verified' ? (
+                            <>
+                              <ShieldCheck className="w-4 h-4 text-sky-600 flex-shrink-0" />
+                              <span className="text-sky-700 text-xs font-medium">
+                                Verified by {toilet.operator_name || 'the local council'} — facility details supplied directly to Where To Wee
+                              </span>
+                            </>
+                          ) : verificationTier(toilet) === 'community_verified' ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                              <span className="text-emerald-600 text-xs font-medium">Community verified location</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-teal-500 flex-shrink-0" />
+                              <span className="text-teal-600 text-xs font-medium">Recently confirmed by a visitor</span>
+                            </>
+                          )}
                         </div>
+                      )}
+
+                      {/* Community confirmation prompt */}
+                      {confirmedIds.has(toilet.id) ? (
+                        <div className="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                          <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                          <span className="text-emerald-700 text-xs font-medium">
+                            Thanks! Marked as still here — this helps keep the map accurate.
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConfirmToilet(toilet);
+                          }}
+                          disabled={confirmingId === toilet.id}
+                          className="flex items-center gap-2 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 hover:bg-teal-100 transition-colors disabled:opacity-60"
+                        >
+                          {confirmingId === toilet.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ThumbsUp className="w-4 h-4" />
+                          )}
+                          Been here recently? Confirm this loo still exists
+                        </button>
                       )}
                     </div>
                     
@@ -1030,6 +1465,31 @@ export default function ToiletMap({ onToiletsLoaded }: ToiletMapProps) {
                       >
                         <Star className="w-4 h-4" />
                         Rate
+                      </button>
+
+                      {/* Share Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          shareToilet(toilet);
+                        }}
+                        className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                          copiedToiletId === toilet.id
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-sky-600 text-white hover:bg-sky-700'
+                        }`}
+                      >
+                        {copiedToiletId === toilet.id ? (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Share2 className="w-4 h-4" />
+                            Share
+                          </>
+                        )}
                       </button>
                       
                       {/* Report Inaccuracy Button */}
