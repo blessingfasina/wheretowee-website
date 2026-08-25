@@ -1,10 +1,10 @@
 import type { Toilet } from './supabase';
 
 export const PRINT_MAP = {
-  lat: 50.830,
-  lng: -0.135,
+  lat: 50.828,
+  lng: -0.138,
   zoom: 13,
-  width: 1100,
+  width: 1400,
   height: 520,
 };
 

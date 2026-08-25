@@ -50,7 +50,7 @@ export default async function BrightonHovePrintPage() {
     <>
       <style>{`
         @media print {
-          @page { size: A4 portrait; margin: 10mm 10mm 12mm 10mm; }
+          @page { size: A4 landscape; margin: 8mm 8mm 9mm 8mm; }
           html, body { background: white !important; }
         }
       `}</style>
@@ -66,8 +66,9 @@ export default async function BrightonHovePrintPage() {
           <p className="text-gray-200 max-w-2xl mb-6">
             A paper map of council public toilets in Brighton &amp; Hove — for
             noticeboards, libraries, community centres, and anyone who prefers
-            not to use a smartphone. Print it, or choose “Save as PDF” in your
-            browser’s print dialog.
+            not to use a smartphone. It prints as <strong>A4 landscape</strong>;
+            choose “Save as PDF” in your browser’s print dialog if you need a
+            file to share.
           </p>
           <div className="flex flex-wrap gap-3">
             <PrintButton />
@@ -81,7 +82,7 @@ export default async function BrightonHovePrintPage() {
         </div>
       </div>
 
-      <article className="bg-white text-gray-900 px-4 py-6 md:px-8 print:px-0 print:py-0 max-w-5xl mx-auto">
+      <article className="bg-white text-gray-900 px-4 py-6 md:px-8 print:px-0 print:py-0 max-w-6xl mx-auto">
         <header className="hidden print:flex items-start justify-between gap-4 mb-3 border-b-2 border-navy-600 pb-2">
           <div>
             <p className="text-xs font-semibold tracking-wide uppercase text-navy-600">
@@ -161,14 +162,14 @@ export default async function BrightonHovePrintPage() {
 
         {grouped.map((g) => (
           <section key={g.area} className="mt-3 print:mt-2 break-inside-avoid">
-            <h2 className="text-sm font-bold text-navy-800 border-b border-navy-200 pb-0.5 mb-1 print:text-[10pt]">
+            <h2 className="text-sm font-bold text-navy-800 border-b border-navy-200 pb-0.5 mb-1 print:text-[9pt]">
               {g.area}
             </h2>
-            <ol className="grid md:grid-cols-2 gap-x-4 print:grid-cols-2">
+            <ol className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-4 print:grid-cols-3">
               {g.items.map((t) => (
                 <li
                   key={t.id}
-                  className={`text-[12px] print:text-[8pt] leading-snug py-1 border-b border-gray-100 print:border-gray-200 ${
+                  className={`text-[12px] print:text-[7.5pt] leading-snug py-1 border-b border-gray-100 print:border-gray-200 print:break-inside-avoid ${
                     t.closed ? 'opacity-80' : ''
                   }`}
                 >

@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
   const lat = parseFloat(p.get('lat') || '');
   const lng = parseFloat(p.get('lng') || '');
   const zoom = Math.min(19, Math.max(1, parseInt(p.get('zoom') || '16', 10)));
-  const width = Math.min(1200, Math.max(100, parseInt(p.get('w') || '600', 10)));
-  const height = Math.min(600, Math.max(100, parseInt(p.get('h') || '300', 10)));
+  const width = Math.min(1600, Math.max(100, parseInt(p.get('w') || '600', 10)));
+  const height = Math.min(800, Math.max(100, parseInt(p.get('h') || '300', 10)));
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 85 || Math.abs(lng) > 180) {
     return NextResponse.json({ error: 'Invalid lat/lng' }, { status: 400 });
