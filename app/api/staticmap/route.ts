@@ -83,7 +83,22 @@ export async function GET(request: NextRequest) {
     }
     const tiles = await Promise.all(fetches);
 
-    const marker = Buffer.from(markerSvg());
+    // pins=0 is used by printable city maps, which overlay their own
+    // numbered markers on a clean basemap.
+    const drawPin = p.get('pins') !== '0';
+    const layers: Array<{ input: Buffer; left: number; top: number }> = tiles.map((t) => ({
+      input: t.buf,
+      left: t.px,
+      top: t.py,
+    }));
+    if (drawPin) {
+      layers.push({
+        input: Buffer.from(markerSvg()),
+        left: Math.round(width / 2) - 15,
+        top: Math.round(height / 2) - 42,
+      });
+    }
+
     const png = await sharp({
       create: {
         width,
@@ -92,11 +107,7 @@ export async function GET(request: NextRequest) {
         background: { r: 221, g: 221, b: 221 },
       },
     })
-      .composite([
-        ...tiles.map((t) => ({ input: t.buf, left: t.px, top: t.py })),
-        // Pin tip points at the exact coordinate (30x42 pin, tip at bottom-centre)
-        { input: marker, left: Math.round(width / 2) - 15, top: Math.round(height / 2) - 42 },
-      ])
+      .composite(layers)
       .png()
       .toBuffer();
 

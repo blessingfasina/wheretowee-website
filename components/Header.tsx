@@ -105,7 +105,7 @@ export default function Header() {
   }, [findOpen]);
 
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-50">
+    <header className="bg-white shadow-sm sticky top-0 z-50 print:hidden">
       <nav className="container-custom" aria-label="Global">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}

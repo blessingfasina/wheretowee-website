@@ -90,3 +90,9 @@
   @apply bg-navy-400;
 }
 
+@media print {
+  header, footer {
+    display: none !important;
+  }
+}
+

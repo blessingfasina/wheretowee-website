@@ -272,13 +272,20 @@ export default async function CityPage({ params }: Props) {
               ? `Find ${toilets.length}+ public toilets in ${cityInfo.fullName}. View accessibility information, baby changing facilities, ratings, and get directions.`
               : `Explore public toilets across ${cityInfo.fullName}. Use our interactive map to find accessibility info, baby changing facilities, and get directions.`}
           </p>
-          <Link
-            href={`/map?lat=${cityInfo.lat}&lng=${cityInfo.lng}`}
-            className="btn btn-mint"
-          >
-            <MapPin className="w-5 h-5" />
-            View on Map
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href={`/map?lat=${cityInfo.lat}&lng=${cityInfo.lng}`}
+              className="btn btn-mint"
+            >
+              <MapPin className="w-5 h-5" />
+              View on Map
+            </Link>
+            {city === 'brighton' && (
+              <Link href="/print/brighton-hove" className="btn btn-secondary">
+                Printable map
+              </Link>
+            )}
+          </div>
         </div>
       </section>
 

@@ -126,7 +126,7 @@ export default function ChatWidget() {
 
   // Keep the widget off the interactive map page — it would cover the
   // map controls on small screens.
-  if (pathname?.startsWith('/map')) return null;
+  if (pathname?.startsWith('/map') || pathname?.startsWith('/print')) return null;
 
   return (
     <>

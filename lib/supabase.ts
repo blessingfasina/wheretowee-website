@@ -361,6 +361,33 @@ export function invalidateTableCache(): void {
   cacheExpiry = 0;
 }
 
+/**
+ * Council-operated toilets for a printable city map. Used by
+ * /print/brighton-hove (and later other authority printouts).
+ */
+export async function getCouncilPrintToilets(
+  operatorName: string,
+): Promise<Toilet[]> {
+  const tableName = await getActiveToiletTable();
+  const { data, error } = await supabase
+    .from(tableName)
+    .select(
+      'id,name,address,latitude,longitude,opening_hours,fee,wheelchair,' +
+        'baby_changing,unisex,gender_neutral,hoist,adult_changing,radar_key,' +
+        'notes,public_note,verified_source,operator_name,status',
+    )
+    .eq('operator_name', operatorName)
+    .in('status', ['active', 'approved'])
+    .order('longitude', { ascending: true })
+    .limit(200);
+
+  if (error || !data) {
+    console.error('getCouncilPrintToilets failed:', error);
+    return [];
+  }
+  return data as unknown as Toilet[];
+}
+
 export async function getNearbyToilets(
   lat: number,
   lng: number,

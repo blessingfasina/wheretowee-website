@@ -44,6 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { route: '/faq', priority: 0.7, changeFreq: 'monthly' as const },
     { route: '/submit', priority: 0.7, changeFreq: 'monthly' as const },
     { route: '/press', priority: 0.6, changeFreq: 'monthly' as const },
+    { route: '/print/brighton-hove', priority: 0.7, changeFreq: 'weekly' as const },
     { route: '/contact', priority: 0.5, changeFreq: 'monthly' as const },
     // High-intent SEO content pages (May 2026 launch).
     { route: '/radar-key', priority: 0.8, changeFreq: 'monthly' as const },
