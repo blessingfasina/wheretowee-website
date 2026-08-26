@@ -103,19 +103,3 @@ export const PRINT_AREA_ORDER: PrintArea[] = [
 export function isClosed(toilet: Toilet): boolean {
   return Boolean(toilet.public_note);
 }
-
-export function accessBits(toilet: Toilet): string[] {
-  const bits: string[] = [];
-  if (toilet.wheelchair === 'yes') bits.push('Wheelchair');
-  if (toilet.wheelchair === 'limited') bits.push('Limited access');
-  if (toilet.baby_changing === 'yes') bits.push('Baby change');
-  if (toilet.hoist === 'yes' || toilet.adult_changing === 'yes') {
-    bits.push('Changing Places');
-  }
-  if (toilet.unisex === 'yes' || toilet.gender_neutral === 'yes') {
-    bits.push('Unisex');
-  }
-  if (toilet.radar_key === 'yes') bits.push('RADAR key');
-  if (toilet.fee === 'no') bits.push('Free');
-  return bits;
-}

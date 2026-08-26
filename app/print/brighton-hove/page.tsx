@@ -4,14 +4,13 @@ import { getCouncilPrintToilets } from '@/lib/supabase';
 import {
   PRINT_MAP,
   PRINT_AREA_ORDER,
-  accessBits,
   compactHours,
   findingNote,
-  isClosed,
   pinOnMap,
   printArea,
 } from '@/lib/printMap';
 import PrintButton from './PrintButton';
+import { AccessLegend, toiletSigns } from './AccessSigns';
 
 export const revalidate = 3600;
 
@@ -30,7 +29,6 @@ export default async function BrightonHovePrintPage() {
     ...t,
     n: i + 1,
     area: printArea(t),
-    closed: isClosed(t),
     pin: pinOnMap(t.latitude, t.longitude),
   }));
   const grouped = PRINT_AREA_ORDER.map((area) => ({
@@ -38,7 +36,6 @@ export default async function BrightonHovePrintPage() {
     items: numbered.filter((t) => t.area === area),
   })).filter((g) => g.items.length > 0);
 
-  const closedCount = numbered.filter((t) => t.closed).length;
   const mapSrc = `/api/staticmap?lat=${PRINT_MAP.lat}&lng=${PRINT_MAP.lng}&zoom=${PRINT_MAP.zoom}&w=${PRINT_MAP.width}&h=${PRINT_MAP.height}&pins=0`;
   const updated = new Date().toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -122,9 +119,7 @@ export default async function BrightonHovePrintPage() {
             t.pin.onMap ? (
               <span
                 key={t.id}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full text-[9px] font-bold leading-[18px] text-center border border-white shadow-sm ${
-                  t.closed ? 'bg-gray-500 text-white' : 'bg-rose-600 text-white'
-                }`}
+                className="absolute -translate-x-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full text-[9px] font-bold leading-[18px] text-center border border-white shadow-sm bg-rose-600 text-white"
                 style={{ left: t.pin.left, top: t.pin.top }}
                 title={`${t.n}. ${t.name}`}
               >
@@ -134,31 +129,13 @@ export default async function BrightonHovePrintPage() {
           )}
         </div>
         <p className="text-[10px] text-gray-500 mt-1 print:text-[8pt]">
-          Numbers match the list below. Grey = temporarily closed. Map © OpenStreetMap contributors.
+          Numbers match the list below. Map © OpenStreetMap contributors.
           {numbered.some((t) => !t.pin.onMap)
             ? ' A numbered site just off this map view is listed in the directory.'
             : ''}
         </p>
 
-        <div className="mt-3 mb-2 text-[11px] print:text-[8.5pt] text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
-          <span>
-            <strong>Wheelchair</strong> step-free / accessible cubicle
-          </span>
-          <span>
-            <strong>Baby change</strong> baby changing
-          </span>
-          <span>
-            <strong>Changing Places</strong> hoist &amp; adult bench
-          </span>
-          <span>
-            <strong>RADAR key</strong> National Key Scheme
-          </span>
-          {closedCount > 0 && (
-            <span>
-              <strong>{closedCount} temporarily closed</strong> — marked below
-            </span>
-          )}
-        </div>
+        <AccessLegend />
 
         {grouped.map((g) => (
           <section key={g.area} className="mt-3 print:mt-2 break-inside-avoid">
@@ -166,31 +143,20 @@ export default async function BrightonHovePrintPage() {
               {g.area}
             </h2>
             <ol className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-4 print:grid-cols-3">
-              {g.items.map((t) => (
+              {g.items.map((t) => {
+                const signs = toiletSigns(t);
+                return (
                 <li
                   key={t.id}
-                  className={`text-[12px] print:text-[7.5pt] leading-snug py-1 border-b border-gray-100 print:border-gray-200 print:break-inside-avoid ${
-                    t.closed ? 'opacity-80' : ''
-                  }`}
+                  className="text-[12px] print:text-[7.5pt] leading-snug py-1 border-b border-gray-100 print:border-gray-200 print:break-inside-avoid"
                 >
                   <div className="flex gap-2">
-                    <span
-                      className={`shrink-0 w-5 h-5 rounded-full text-[10px] font-bold leading-5 text-center print:w-4 print:h-4 print:leading-4 print:text-[8px] ${
-                        t.closed
-                          ? 'bg-gray-500 text-white'
-                          : 'bg-rose-600 text-white'
-                      }`}
-                    >
+                    <span className="shrink-0 w-5 h-5 rounded-full text-[10px] font-bold leading-5 text-center print:w-4 print:h-4 print:leading-4 print:text-[8px] bg-rose-600 text-white">
                       {t.n}
                     </span>
                     <div className="min-w-0">
                       <p className="font-semibold text-navy-900">
                         {t.name}
-                        {t.closed && (
-                          <span className="ml-1.5 text-[10px] print:text-[7.5pt] font-bold uppercase tracking-wide text-gray-600">
-                            Temporarily closed
-                          </span>
-                        )}
                         {!t.pin.onMap && (
                           <span className="ml-1.5 text-[10px] print:text-[7.5pt] font-medium text-gray-500">
                             (just off the map)
@@ -198,11 +164,15 @@ export default async function BrightonHovePrintPage() {
                         )}
                       </p>
                       <p className="text-gray-600">{t.address}</p>
-                      <p className="text-gray-700">
-                        {compactHours(t.opening_hours)}
-                        {accessBits(t).length > 0
-                          ? ` · ${accessBits(t).join(' · ')}`
-                          : ''}
+                      <p className="text-gray-700 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                        <span>{compactHours(t.opening_hours)}</span>
+                        {signs.length > 0 && (
+                          <span className="inline-flex items-center gap-0.5">
+                            {signs.map((s) => (
+                              <span key={s.key}>{s.node}</span>
+                            ))}
+                          </span>
+                        )}
                       </p>
                       {findingNote(t.notes) && (
                         <p className="text-gray-500 italic">
@@ -212,7 +182,8 @@ export default async function BrightonHovePrintPage() {
                     </div>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ol>
           </section>
         ))}
@@ -221,9 +192,10 @@ export default async function BrightonHovePrintPage() {
           <p>
             Produced by Where To Wee with data from Brighton &amp; Hove City
             Council. All listed council toilets are free to use. Opening hours
-            can change; Christmas Day closures apply. For live updates, reports
-            and the rest of the city, use the free Where To Wee app or{' '}
-            <span className="font-semibold text-navy-700">wheretowee.uk</span>.
+            can change; Christmas Day closures apply. Check the free Where To Wee
+            app or{' '}
+            <span className="font-semibold text-navy-700">wheretowee.uk</span>
+            {' '}for live closures and updates.
           </p>
         </footer>
       </article>
