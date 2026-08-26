@@ -4,13 +4,13 @@ import { getCouncilPrintToilets } from '@/lib/supabase';
 import {
   PRINT_MAP,
   PRINT_AREA_ORDER,
+  accessBits,
   compactHours,
   findingNote,
   pinOnMap,
   printArea,
 } from '@/lib/printMap';
 import PrintButton from './PrintButton';
-import { AccessLegend, toiletSigns } from './AccessSigns';
 
 export const revalidate = 3600;
 
@@ -135,7 +135,20 @@ export default async function BrightonHovePrintPage() {
             : ''}
         </p>
 
-        <AccessLegend />
+        <div className="mt-3 mb-2 text-[11px] print:text-[8.5pt] text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+          <span>
+            <strong>Wheelchair</strong> step-free / accessible cubicle
+          </span>
+          <span>
+            <strong>Baby change</strong> baby changing
+          </span>
+          <span>
+            <strong>Changing Places</strong> hoist &amp; adult bench
+          </span>
+          <span>
+            <strong>RADAR key</strong> National Key Scheme
+          </span>
+        </div>
 
         {grouped.map((g) => (
           <section key={g.area} className="mt-3 print:mt-2 break-inside-avoid">
@@ -143,9 +156,7 @@ export default async function BrightonHovePrintPage() {
               {g.area}
             </h2>
             <ol className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-4 print:grid-cols-3">
-              {g.items.map((t) => {
-                const signs = toiletSigns(t);
-                return (
+              {g.items.map((t) => (
                 <li
                   key={t.id}
                   className="text-[12px] print:text-[7.5pt] leading-snug py-1 border-b border-gray-100 print:border-gray-200 print:break-inside-avoid"
@@ -164,15 +175,11 @@ export default async function BrightonHovePrintPage() {
                         )}
                       </p>
                       <p className="text-gray-600">{t.address}</p>
-                      <p className="text-gray-700 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        <span>{compactHours(t.opening_hours)}</span>
-                        {signs.length > 0 && (
-                          <span className="inline-flex items-center gap-0.5">
-                            {signs.map((s) => (
-                              <span key={s.key}>{s.node}</span>
-                            ))}
-                          </span>
-                        )}
+                      <p className="text-gray-700">
+                        {compactHours(t.opening_hours)}
+                        {accessBits(t).length > 0
+                          ? ` · ${accessBits(t).join(' · ')}`
+                          : ''}
                       </p>
                       {findingNote(t.notes) && (
                         <p className="text-gray-500 italic">
@@ -182,8 +189,7 @@ export default async function BrightonHovePrintPage() {
                     </div>
                   </div>
                 </li>
-                );
-              })}
+              ))}
             </ol>
           </section>
         ))}
