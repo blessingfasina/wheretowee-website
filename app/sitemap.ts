@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { CITY_SLUGS } from '@/lib/cities';
 import {
   supabase,
   getToiletSitemapPage,
@@ -7,34 +8,19 @@ import {
   SITE_ORIGIN,
 } from '@/lib/supabase';
 
-const cities = [
-  'london', 'birmingham', 'manchester', 'leeds', 'glasgow', 'liverpool',
-  'bristol', 'sheffield', 'edinburgh', 'leicester', 'coventry', 'bradford',
-  'cardiff', 'belfast', 'nottingham', 'newcastle', 'brighton', 'southampton',
-  'portsmouth', 'oxford', 'cambridge', 'york', 'bath', 'bournemouth',
-  'reading', 'milton-keynes', 'exeter', 'aberdeen', 'dundee', 'swansea',
-];
+export const revalidate = 3600;
 
-// Cap how many individual toilet pages we list in the sitemap.
-//
-// We deliberately keep this much lower than Google's 50,000 limit and
-// far below the live row count. Reasoning, learnt the hard way from
-// Search Console:
-//   * A young site has limited crawl budget. Listing every toilet
-//     ever created drowns the high-value pages in a queue of similar
-//     listings → "Discovered – currently not indexed" piles up.
-//   * `getToiletSitemapPage` already applies the
-//     [isIndexWorthyToilet] filter, so this cap is the upper bound on
-//     the indexable set, not on the catalog as a whole.
-// As we accrue ratings + verifications the indexable set grows
-// organically; raise this cap then.
-const MAX_TOILET_URLS = 5000;
+// Cap how many individual toilet pages we list. Google's per-file
+// limit is 50,000; we stay well under that. Named, city-resolvable
+// toilets are indexable, so the sitemap should actually list them —
+// the previous generator stopped after the first 1,000 database rows
+// and omitted most of the pages Search Console had already found.
+const MAX_TOILET_URLS = 20000;
 const PAGE_SIZE = 1000;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://wheretowee.uk';
+  const baseUrl = SITE_ORIGIN;
 
-  // Static pages
   const staticPages = [
     { route: '', priority: 1, changeFreq: 'weekly' as const },
     { route: '/map', priority: 0.9, changeFreq: 'daily' as const },
@@ -47,10 +33,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { route: '/press', priority: 0.6, changeFreq: 'monthly' as const },
     { route: '/print/brighton-hove', priority: 0.7, changeFreq: 'weekly' as const },
     { route: '/contact', priority: 0.5, changeFreq: 'monthly' as const },
-    // High-intent SEO content pages (May 2026 launch).
     { route: '/radar-key', priority: 0.8, changeFreq: 'monthly' as const },
     { route: '/toilet-tips', priority: 0.8, changeFreq: 'monthly' as const },
-    // Intent-based aggregation pages (May 2026 SEO push).
     { route: '/free-public-toilets', priority: 0.9, changeFreq: 'weekly' as const },
     { route: '/accessible-toilets-uk', priority: 0.9, changeFreq: 'weekly' as const },
     { route: '/changing-places-uk', priority: 0.9, changeFreq: 'weekly' as const },
@@ -68,26 +52,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: page.priority,
   }));
 
-  // City pages - good for local SEO
-  const cityPages = cities.map((city) => ({
+  const cityPages = CITY_SLUGS.map((city) => ({
     url: `${baseUrl}/toilets/${city}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
-    priority: 0.7,
+    priority: 0.7 as const,
   }));
 
-  // Per-toilet detail pages. We paginate through the active table in
-  // batches of PAGE_SIZE so we never load the whole catalog into
-  // memory at once. Rows we cannot assign to a supported city (no
-  // city in the address and too far from every city centre) are
-  // skipped — their canonical URL would otherwise be `/toilets/uk/...`.
   const toiletPages: MetadataRoute.Sitemap = [];
   try {
     let offset = 0;
     while (toiletPages.length < MAX_TOILET_URLS) {
-      const batch = await getToiletSitemapPage(offset, PAGE_SIZE);
-      if (batch.length === 0) break;
-      for (const row of batch) {
+      const { rows, scanned } = await getToiletSitemapPage(offset, PAGE_SIZE);
+      if (scanned === 0) break;
+      for (const row of rows) {
         const citySlug = citySlugForToilet(row);
         if (!citySlug) continue;
         toiletPages.push({
@@ -99,13 +77,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         if (toiletPages.length >= MAX_TOILET_URLS) break;
       }
       offset += PAGE_SIZE;
-      if (batch.length < PAGE_SIZE) break;
+      if (scanned < PAGE_SIZE) break;
     }
   } catch (e) {
     console.error('sitemap: failed to enumerate toilet pages', e);
   }
 
-  // Blog posts - fetch from Supabase
   let blogPages: MetadataRoute.Sitemap = [];
   try {
     const { data: posts } = await supabase

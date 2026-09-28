@@ -556,14 +556,17 @@ export async function getToiletSitemapPage(
   offset: number,
   limit: number,
   opts: { onlyIndexable?: boolean } = {},
-): Promise<Array<{
-  id: number;
-  name: string | null;
-  address: string | null;
-  updated_at: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-}>> {
+): Promise<{
+  rows: Array<{
+    id: number;
+    name: string | null;
+    address: string | null;
+    updated_at: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }>;
+  scanned: number;
+}> {
   const onlyIndexable = opts.onlyIndexable ?? true;
   const tableName = await getActiveToiletTable();
 
@@ -577,10 +580,13 @@ export async function getToiletSitemapPage(
 
   if (error) {
     console.error('getToiletSitemapPage error:', error);
-    return [];
+    return { rows: [], scanned: 0 };
   }
-  // Some rows pre-date the `updated_at` column — fall back to
-  // `created_at` so the sitemap still has a usable lastmod date.
+  // `scanned` is the unfiltered page size from PostgREST. Callers must
+  // use this (not `rows.length`) to decide whether to fetch the next
+  // page — JS filters like [isIndexWorthyToilet] shrink `rows` and
+  // would otherwise stop pagination after the first thousand ids.
+  const scanned = (data ?? []).length;
   const rows = (data ?? []).map((row: {
     id: number;
     name: string | null;
@@ -597,8 +603,10 @@ export async function getToiletSitemapPage(
     latitude: row.latitude ?? null,
     longitude: row.longitude ?? null,
   }));
-  if (!onlyIndexable) return rows;
-  return rows.filter((row) => isIndexWorthyToilet(row));
+  return {
+    rows: onlyIndexable ? rows.filter((row) => isIndexWorthyToilet(row)) : rows,
+    scanned,
+  };
 }
 
 /// Kind of "intent" landing page. Each variant maps to a different
