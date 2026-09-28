@@ -7,11 +7,11 @@ import {
   getActiveToiletTable,
   getToiletEnrichment,
   resolveVerificationTier,
-  slugifyToiletName,
+  canonicalToiletPath,
   type Toilet,
   type VerificationTier,
 } from '@/lib/supabase';
-import { CITIES, type CityInfo } from '@/lib/cities';
+import { CITIES, CITY_BY_SLUG, belongsToCity, type CityInfo } from '@/lib/cities';
 
 // Revalidate the city pages every hour. New toilets / freshly
 // confirmed status changes show up without a redeploy, but we still
@@ -60,9 +60,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { city } = await params;
   const cityInfo = cityCoordinates[city];
 
-  if (!cityInfo) {
+    if (!cityInfo) {
     return {
       title: 'City Not Found',
+      robots: { index: false, follow: true },
     };
   }
 
@@ -121,12 +122,15 @@ async function fetchCityToilets(city: string, fullName: string): Promise<Toilet[
       .or('status.eq.active,status.eq.approved')
       .or(`address.ilike.%${slugForLike}%,address.ilike.%${city}%`)
       .order('id', { ascending: false })
-      .limit(60);
+      .limit(150);
     if (error) {
       console.error(`fetchCityToilets(${city}) error:`, error);
       return [];
     }
-    return (data ?? []) as Toilet[];
+    const rows = (data ?? []) as Toilet[];
+    const cityMeta = CITY_BY_SLUG[city];
+    if (!cityMeta) return rows.slice(0, 60);
+    return rows.filter((t) => belongsToCity(t, cityMeta)).slice(0, 60);
   } catch (e) {
     console.error(`fetchCityToilets(${city}) threw:`, e);
     return [];
@@ -347,8 +351,7 @@ export default async function CityPage({ params }: Props) {
                   confirmation_count: toilet.confirmation_count,
                   last_confirmed_at: toilet.last_confirmed_at,
                 });
-                const detailHref =
-                  `/toilets/${city}/${toilet.id}-${slugifyToiletName(toilet.name)}`;
+                const detailHref = canonicalToiletPath(toilet, city);
                 return (
                   <div key={toilet.id} className="card">
                     <div className="flex items-start justify-between mb-3 gap-2">
@@ -579,7 +582,7 @@ export default async function CityPage({ params }: Props) {
                     </div>
                   </div>
                   <Link
-                    href={`/toilets/${city}/${t.id}-${slugifyToiletName(t.name)}`}
+                    href={canonicalToiletPath(t, city)}
                     className="font-bold text-navy-800 hover:text-mint-600 line-clamp-2"
                   >
                     {t.name}

@@ -1,5 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
-import { CITIES, type CityInfo } from './cities';
+import {
+  CITIES,
+  CITY_SLUGS,
+  cityFromAddress,
+  citySlugForToilet,
+  type CityInfo,
+} from './cities';
+
+export { cityFromAddress, citySlugForToilet, CITY_SLUGS as SUPPORTED_CITY_SLUGS };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -165,30 +173,44 @@ export function needsReconfirmation(t: {
   return ageDays > 90;
 }
 
-/// "Index-worthy" cutoff in days. Toilets confirmed within this
-/// window are considered fresh enough to deserve their own indexable
-/// page even without ratings or verification. Matches the freshness
-/// threshold used by `resolveVerificationTier` for `recently_confirmed`.
-const INDEXABLE_RECENT_CONFIRM_DAYS = 30;
+/// Placeholder names produced when a row has no real venue title.
+/// These pages are near-duplicates of each other ("loo — Public Toilet
+/// in Portsmouth") so they stay `noindex`. A Sainsbury's / McDonald's /
+/// named pub is unique local content and should be indexed even with
+/// no ratings yet — the previous ratings-or-verification gate left
+/// ~580 real venue pages stuck in Search Console as "Excluded by noindex".
+const GENERIC_TOILET_NAMES = new Set([
+  'loo',
+  'toilet',
+  'toilets',
+  'public toilet',
+  'public toilets',
+  'wc',
+  'restroom',
+  'lavatory',
+  'public convenience',
+  'public conveniences',
+  'the loo',
+  'the toilet',
+]);
+
+export function isGenericToiletName(name: string | null | undefined): boolean {
+  const n = (name ?? '').trim().toLowerCase();
+  if (!n) return true;
+  return GENERIC_TOILET_NAMES.has(n);
+}
 
 /**
  * Decide whether a toilet detail page is worth asking Google to index.
  *
- * The site has ~18k toilet rows but only a small fraction carry signals
- * Google can use to differentiate them (ratings, council verification,
- * recent community confirmation, or a high-value accessibility flag
- * like Changing Places / RADAR key). Pushing the entire long tail at
- * Google leads to "Discovered – currently not indexed" piling up; we
- * pre-filter here so:
- *
- *   - The sitemap only includes URLs we want crawled now.
- *   - Detail pages that don't yet earn this bar render with
- *     `<meta name="robots" content="noindex,follow">`. They stay live
- *     for users (the city pages still link to them), but stop competing
- *     for crawl budget. As soon as a row earns one of the signals it
- *     flips to indexable on the next request — no manual flag.
+ * Index anything with a distinctive venue name. Keep noindex only for
+ * generic stubs ("loo", bare "toilet") which collide with each other
+ * and with the city landing page. Sitemap still caps how many of the
+ * indexable set we actively push.
  */
 export function isIndexWorthyToilet(t: {
+  name?: string | null;
+  status?: string | null;
   rating_count?: number | null;
   verified_source?: string | null;
   verified_at?: string | null;
@@ -196,17 +218,10 @@ export function isIndexWorthyToilet(t: {
   hoist?: string | null;
   radar_key?: string | null;
 }): boolean {
-  if ((t.rating_count ?? 0) >= 1) return true;
-  if (t.verified_source && t.verified_source.length > 0) return true;
-  if (t.verified_at) return true;
-  if (t.last_confirmed_at) {
-    const ageDays =
-      (Date.now() - new Date(t.last_confirmed_at).getTime()) / (1000 * 60 * 60 * 24);
-    if (ageDays <= INDEXABLE_RECENT_CONFIRM_DAYS) return true;
-  }
-  if (t.hoist === 'yes') return true; // Changing Places: always high-value
-  if (t.radar_key === 'yes') return true; // National Key Scheme: high-value
-  return false;
+  const status = (t.status ?? 'active').toLowerCase();
+  if (status && status !== 'active' && status !== 'approved') return false;
+  if (isGenericToiletName(t.name)) return false;
+  return true;
 }
 
 /**
@@ -264,22 +279,6 @@ export async function getCityDirectoryStats(): Promise<{
   }
 }
 
-/// PostgREST `OR` filter string mirroring [isIndexWorthyToilet]. Used by
-/// the slim sitemap query so the filtering happens server-side rather
-/// than streaming 30k rows into Node and discarding 90 % of them.
-function indexWorthyOrFilter(): string {
-  const cutoff = new Date(
-    Date.now() - INDEXABLE_RECENT_CONFIRM_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  return [
-    'rating_count.gte.1',
-    'verified_source.not.is.null',
-    'verified_at.not.is.null',
-    `last_confirmed_at.gte.${cutoff}`,
-    'hoist.eq.yes',
-    'radar_key.eq.yes',
-  ].join(',');
-}
 
 /// Resolve a confidence level from either a server-provided label or
 /// the numeric score. Matches the Dart `ConfidenceLevel.fromCode/Score`.
@@ -562,22 +561,17 @@ export async function getToiletSitemapPage(
   name: string | null;
   address: string | null;
   updated_at: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }>> {
   const onlyIndexable = opts.onlyIndexable ?? true;
   const tableName = await getActiveToiletTable();
 
-  let query = supabase
+  const { data, error } = await supabase
     .from(tableName)
-    .select('id, name, address, updated_at, created_at')
-    .or('status.eq.active,status.eq.approved');
-
-  if (onlyIndexable) {
-    // Server-side filter — keeps round-trips small even when the table
-    // has 18k+ rows but only a few thousand are index-worthy.
-    query = query.or(indexWorthyOrFilter());
-  }
-
-  const { data, error } = await query
+    .select('id, name, address, updated_at, created_at, latitude, longitude, rating_count')
+    .or('status.eq.active,status.eq.approved')
+    .order('rating_count', { ascending: false, nullsFirst: false })
     .order('id', { ascending: true })
     .range(offset, offset + limit - 1);
 
@@ -587,68 +581,24 @@ export async function getToiletSitemapPage(
   }
   // Some rows pre-date the `updated_at` column — fall back to
   // `created_at` so the sitemap still has a usable lastmod date.
-  return (data ?? []).map((row: {
+  const rows = (data ?? []).map((row: {
     id: number;
     name: string | null;
     address: string | null;
     updated_at?: string | null;
     created_at?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
   }) => ({
     id: row.id,
     name: row.name,
     address: row.address,
     updated_at: row.updated_at ?? row.created_at ?? null,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
   }));
-}
-
-/// City slugs we currently have first-class landing pages for. Used by
-/// `cityFromAddress` when resolving a clean URL for a toilet detail
-/// page. Order matters slightly — multi-word slugs come first so we
-/// match the longest token before falling back to single words.
-export const SUPPORTED_CITY_SLUGS: ReadonlyArray<string> = [
-  'milton-keynes',
-  'london',
-  'birmingham',
-  'manchester',
-  'leeds',
-  'glasgow',
-  'liverpool',
-  'bristol',
-  'sheffield',
-  'edinburgh',
-  'leicester',
-  'coventry',
-  'bradford',
-  'cardiff',
-  'belfast',
-  'nottingham',
-  'newcastle',
-  'brighton',
-  'southampton',
-  'portsmouth',
-  'oxford',
-  'cambridge',
-  'york',
-  'bath',
-  'bournemouth',
-  'reading',
-  'exeter',
-  'aberdeen',
-  'dundee',
-  'swansea',
-];
-
-/// Best-effort match of an address string to one of our supported
-/// city slugs. Used to build canonical `/toilets/[city]/[id]` URLs.
-/// Returns null when no supported city is named in the address.
-export function cityFromAddress(address: string | null | undefined): string | null {
-  if (!address) return null;
-  const haystack = address.toLowerCase();
-  for (const slug of SUPPORTED_CITY_SLUGS) {
-    const needle = slug.replace(/-/g, ' ');
-    if (haystack.includes(needle)) return slug;
-  }
-  return null;
+  if (!onlyIndexable) return rows;
+  return rows.filter((row) => isIndexWorthyToilet(row));
 }
 
 /// Kind of "intent" landing page. Each variant maps to a different
@@ -819,6 +769,43 @@ export function slugifyToiletName(name: string | null | undefined): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60) || 'loo';
+}
+
+export const SITE_ORIGIN = 'https://wheretowee.uk';
+
+/// `[id]-[slugified-name]` path segment used in toilet URLs.
+export function toiletSlugSegment(id: number, name: string | null | undefined): string {
+  return `${id}-${slugifyToiletName(name)}`;
+}
+
+/// One canonical path per toilet. Variants (wrong city, old name slug,
+/// `/toilets/uk/...` fallback) must 308 here so Google doesn't see
+/// several self-canonical copies of the same page.
+export function canonicalToiletPath(
+  toilet: {
+    id: number;
+    name: string | null;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  },
+  urlCity?: string | null,
+): string {
+  const city = citySlugForToilet(toilet, urlCity) ?? urlCity ?? 'uk';
+  return `/toilets/${city}/${toiletSlugSegment(toilet.id, toilet.name)}`;
+}
+
+export function canonicalToiletUrl(
+  toilet: {
+    id: number;
+    name: string | null;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  },
+  urlCity?: string | null,
+): string {
+  return `${SITE_ORIGIN}${canonicalToiletPath(toilet, urlCity)}`;
 }
 
 export async function getToiletStats(): Promise<{

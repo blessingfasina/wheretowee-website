@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import {
   MapPin,
   Star,
@@ -28,8 +28,9 @@ import {
   confidenceLevelFor,
   isIndexWorthyToilet,
   getNearbyToilets,
-  slugifyToiletName,
-  cityFromAddress,
+  citySlugForToilet,
+  canonicalToiletPath,
+  SITE_ORIGIN,
   type Toilet,
   type VerificationTier,
   type ConfidenceLevel,
@@ -68,22 +69,41 @@ async function fetchToilet(id: number): Promise<Toilet | null> {
       .eq('id', id)
       .single();
     if (error || !data) return null;
-    return data as Toilet;
+    const toilet = data as Toilet;
+    const status = (toilet.status ?? 'active').toLowerCase();
+    if (status && status !== 'active' && status !== 'approved') return null;
+    return toilet;
   } catch (e) {
     console.error('fetchToilet error:', e);
     return null;
   }
 }
 
+/// 308 any city/slug variant onto the one URL we want Google to index.
+/// Called from both generateMetadata and the page so crawlers never
+/// see a 200 with a self-canonical pointing at the variant they hit
+/// ("Duplicate without user-selected canonical" in Search Console).
+function enforceCanonicalToiletUrl(city: string, slug: string, toilet: Toilet): string {
+  const canonicalPath = canonicalToiletPath(toilet, city);
+  const requestedPath = `/toilets/${city}/${slug}`;
+  if (canonicalPath !== requestedPath) {
+    permanentRedirect(canonicalPath);
+  }
+  return canonicalPath;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { city, slug } = await params;
   const id = parseToiletId(slug);
-  if (id == null) return { title: 'Toilet Not Found' };
+  if (id == null) return { title: 'Toilet Not Found', robots: { index: false, follow: true } };
 
   const toilet = await fetchToilet(id);
-  if (!toilet) return { title: 'Toilet Not Found' };
+  if (!toilet) return { title: 'Toilet Not Found', robots: { index: false, follow: true } };
 
-  const cityName = city
+  const canonicalPath = enforceCanonicalToiletUrl(city, slug, toilet);
+  const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
+  const canonicalCity = citySlugForToilet(toilet, city) ?? city;
+  const cityName = canonicalCity
     .split('-')
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(' ');
@@ -100,14 +120,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `Public toilet at ${toilet.address}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`
     : `Public toilet in ${cityName}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`;
 
-  // Robots policy: thin/unverified detail pages are kept reachable
-  // (so users hitting them from city lists or external links still get
-  // a working page) but hidden from Google's index. As soon as the row
-  // earns a signal — a single rating, a council import, a recent
-  // community confirm, or a high-value accessibility flag — the
-  // metadata flips back to indexable on the next request. Search Console
-  // had ~2,100 of our pages stuck in "Discovered – not indexed" before
-  // we added this gate; this is the targeted fix.
+  // Named venues are indexable. Generic stubs ("loo") stay noindex so
+  // they don't compete with the city landing page.
   const indexable = isIndexWorthyToilet(toilet);
   const robots = indexable
     ? undefined
@@ -124,7 +138,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title,
       description,
-      url: `https://wheretowee.uk/toilets/${city}/${slug}`,
+      url: canonicalUrl,
       type: 'website',
     },
     twitter: {
@@ -133,7 +147,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
     },
     alternates: {
-      canonical: `https://wheretowee.uk/toilets/${city}/${slug}`,
+      canonical: canonicalUrl,
     },
   };
 }
@@ -191,18 +205,9 @@ export default async function ToiletDetailPage({ params }: Props) {
   const toilet = await fetchToilet(id);
   if (!toilet) notFound();
 
-  // If the city in the URL doesn't match the address (e.g. someone
-  // mis-linked from a different city's page), redirect to the canonical
-  // form via 404 so we don't dilute SEO with multiple URLs for one toilet.
-  const canonicalCity = cityFromAddress(toilet.address);
-  // We don't *force* a redirect for unknown cities — some toilets'
-  // addresses don't include a city keyword. Just trust the URL.
-  if (canonicalCity && canonicalCity !== city) {
-    // Issue a permanent redirect to the canonical URL.
-    const canonicalSlug = `${toilet.id}-${slugifyToiletName(toilet.name)}`;
-    const { redirect } = await import('next/navigation');
-    redirect(`/toilets/${canonicalCity}/${canonicalSlug}`);
-  }
+  const canonicalPath = enforceCanonicalToiletUrl(city, slug, toilet);
+  const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
+  const canonicalCity = citySlugForToilet(toilet, city) ?? city;
 
   // Fetch trust signals + accessibility metadata in parallel.
   const { verification, confidence, accessibility } = await getToiletEnrichment([toilet.id]);
@@ -235,7 +240,7 @@ export default async function ToiletDetailPage({ params }: Props) {
 
   const access = accessibility[toilet.id];
 
-  const cityName = city
+  const cityName = canonicalCity
     .split('-')
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(' ');
@@ -264,7 +269,7 @@ export default async function ToiletDetailPage({ params }: Props) {
       <ToiletDetailImpression
         toiletId={toilet.id}
         toiletName={toilet.name}
-        citySlug={city}
+        citySlug={canonicalCity}
         verificationTier={tier}
         confidenceScore={hasSignals ? confidenceScore : null}
         confidenceLabel={hasSignals && confidenceLevel ? confidenceLevel : null}
@@ -278,7 +283,7 @@ export default async function ToiletDetailPage({ params }: Props) {
               Cities
             </Link>
             <ChevronRight className="w-4 h-4" />
-            <Link href={`/toilets/${city}`} className="hover:text-white">
+            <Link href={`/toilets/${canonicalCity}`} className="hover:text-white">
               {cityName}
             </Link>
             <ChevronRight className="w-4 h-4" />
@@ -573,7 +578,7 @@ export default async function ToiletDetailPage({ params }: Props) {
                 </p>
               </div>
               <Link
-                href={`/toilets/${city}`}
+                href={`/toilets/${canonicalCity}`}
                 className="text-navy-700 font-semibold hover:text-navy-900 inline-flex items-center gap-1"
               >
                 All in {cityName}
@@ -582,8 +587,7 @@ export default async function ToiletDetailPage({ params }: Props) {
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {nearbyOthers.map((n) => {
-                const nCity = cityFromAddress(n.address) ?? city;
-                const nHref = `/toilets/${nCity}/${n.id}-${slugifyToiletName(n.name)}`;
+                const nHref = canonicalToiletPath(n, canonicalCity);
                 const tags: string[] = [];
                 if (n.fee === 'no' || n.fee === 'free') tags.push('Free');
                 if (n.wheelchair === 'yes') tags.push('Accessible');
@@ -637,7 +641,7 @@ export default async function ToiletDetailPage({ params }: Props) {
           __html: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'PublicToilet',
-            '@id': `https://wheretowee.uk/toilets/${city}/${slug}`,
+            '@id': canonicalUrl,
             name: toilet.name,
             ...(toilet.address && {
               address: {
@@ -652,7 +656,7 @@ export default async function ToiletDetailPage({ params }: Props) {
               latitude: toilet.latitude,
               longitude: toilet.longitude,
             },
-            url: `https://wheretowee.uk/toilets/${city}/${slug}`,
+            url: canonicalUrl,
             isAccessibleForFree:
               toilet.fee === 'no' || toilet.fee === 'free' ? true : toilet.fee === 'yes' ? false : undefined,
             amenityFeature: [
@@ -700,10 +704,10 @@ export default async function ToiletDetailPage({ params }: Props) {
             '@context': 'https://schema.org',
             '@type': 'BreadcrumbList',
             itemListElement: [
-              { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://wheretowee.uk' },
-              { '@type': 'ListItem', position: 2, name: 'Cities', item: 'https://wheretowee.uk/toilets' },
-              { '@type': 'ListItem', position: 3, name: cityName, item: `https://wheretowee.uk/toilets/${city}` },
-              { '@type': 'ListItem', position: 4, name: toilet.name, item: `https://wheretowee.uk/toilets/${city}/${slug}` },
+              { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_ORIGIN },
+              { '@type': 'ListItem', position: 2, name: 'Cities', item: `${SITE_ORIGIN}/toilets` },
+              { '@type': 'ListItem', position: 3, name: cityName, item: `${SITE_ORIGIN}/toilets/${canonicalCity}` },
+              { '@type': 'ListItem', position: 4, name: toilet.name, item: canonicalUrl },
             ],
           }),
         }}

@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import {
   getCategoryStats,
-  slugifyToiletName,
+  citySlugForToilet,
+  canonicalToiletPath,
   CATEGORY_META,
   type CategoryKind,
   type Toilet,
@@ -336,16 +337,7 @@ export default async function CategoryLandingPage({
 /// filter but its address might not include one of our supported
 /// city slugs), so we fall back to a city-less URL when needed.
 function FeaturedToiletCard({ toilet }: { toilet: Toilet }) {
-  // Try to derive a city slug from the address for a clean URL;
-  // fall back to "uk" so the link still works (the [slug] route
-  // ignores the city segment for lookup — it parses the toilet id
-  // from the slug).
-  const lowerAddress = (toilet.address ?? '').toLowerCase();
-  const matched = lowerAddress.match(
-    /(london|birmingham|manchester|leeds|glasgow|liverpool|bristol|sheffield|edinburgh|leicester|coventry|bradford|cardiff|belfast|nottingham|newcastle|brighton|southampton|portsmouth|oxford|cambridge|york|bath|bournemouth|reading|exeter|aberdeen|dundee|swansea|milton keynes)/,
-  );
-  const citySlug = matched ? matched[1].replace(/\s+/g, '-') : 'uk';
-  const href = `/toilets/${citySlug}/${toilet.id}-${slugifyToiletName(toilet.name)}`;
+  const href = canonicalToiletPath(toilet, citySlugForToilet(toilet) ?? 'uk');
   return (
     <div className="card border border-gray-100">
       <div className="flex items-start justify-between mb-2 gap-2">

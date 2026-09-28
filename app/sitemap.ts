@@ -2,8 +2,9 @@ import { MetadataRoute } from 'next';
 import {
   supabase,
   getToiletSitemapPage,
-  cityFromAddress,
-  slugifyToiletName,
+  citySlugForToilet,
+  canonicalToiletPath,
+  SITE_ORIGIN,
 } from '@/lib/supabase';
 
 const cities = [
@@ -77,9 +78,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Per-toilet detail pages. We paginate through the active table in
   // batches of PAGE_SIZE so we never load the whole catalog into
-  // memory at once. Toilets whose addresses don't map to a supported
-  // city slug are silently dropped because their canonical URL can't
-  // be constructed without a city segment.
+  // memory at once. Rows we cannot assign to a supported city (no
+  // city in the address and too far from every city centre) are
+  // skipped — their canonical URL would otherwise be `/toilets/uk/...`.
   const toiletPages: MetadataRoute.Sitemap = [];
   try {
     let offset = 0;
@@ -87,11 +88,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const batch = await getToiletSitemapPage(offset, PAGE_SIZE);
       if (batch.length === 0) break;
       for (const row of batch) {
-        const citySlug = cityFromAddress(row.address);
+        const citySlug = citySlugForToilet(row);
         if (!citySlug) continue;
-        const slug = `${row.id}-${slugifyToiletName(row.name)}`;
         toiletPages.push({
-          url: `${baseUrl}/toilets/${citySlug}/${slug}`,
+          url: `${SITE_ORIGIN}${canonicalToiletPath(row, citySlug)}`,
           lastModified: row.updated_at ? new Date(row.updated_at) : new Date(),
           changeFrequency: 'monthly' as const,
           priority: 0.5,

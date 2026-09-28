@@ -10,7 +10,7 @@ import {
   Star,
   Compass,
 } from 'lucide-react';
-import { getCityDirectoryStats, slugifyToiletName, cityFromAddress } from '@/lib/supabase';
+import { getCityDirectoryStats, citySlugForToilet, canonicalToiletPath } from '@/lib/supabase';
 import BreadcrumbJsonLd from '@/components/BreadcrumbJsonLd';
 
 export const metadata: Metadata = {
@@ -267,8 +267,7 @@ export default async function ToiletsDirectoryPage() {
             </p>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {topRated.map((t) => {
-                const citySlug = cityFromAddress(t.address) ?? 'uk';
-                const href = `/toilets/${citySlug}/${t.id}-${slugifyToiletName(t.name)}`;
+                const href = canonicalToiletPath(t, citySlugForToilet(t) ?? 'uk');
                 return (
                   <Link
                     key={t.id}

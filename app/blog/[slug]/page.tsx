@@ -21,6 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!post) {
     return {
       title: 'Post Not Found',
+      robots: { index: false, follow: false },
     };
   }
   
@@ -34,6 +35,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       publishedTime: post.created_at,
       authors: [post.author],
       images: post.image_url ? [post.image_url] : undefined,
+      url: `https://wheretowee.uk/blog/${slug}`,
+    },
+    alternates: {
+      canonical: `https://wheretowee.uk/blog/${slug}`,
     },
   };
 }

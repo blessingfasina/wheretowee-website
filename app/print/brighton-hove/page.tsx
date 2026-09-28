@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   description:
     'Download or print a Where To Wee map of Brighton & Hove City Council public toilets, with accessibility information, opening hours and how to find each one.',
   robots: { index: true, follow: true },
+  alternates: {
+    canonical: 'https://wheretowee.uk/print/brighton-hove',
+  },
 };
 
 const OPERATOR = 'Brighton & Hove City Council';
