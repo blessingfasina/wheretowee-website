@@ -17,7 +17,7 @@ export default async function Image() {
     eyebrow: 'Changing Places · UK',
     title: 'Find a Changing Places near you',
     subtitle,
-    icon: '🛌',
+    icon: 'CP',
     accent: 'purple',
   });
 }

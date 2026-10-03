@@ -17,7 +17,7 @@ export default async function Image() {
     eyebrow: 'Accessible · UK',
     title: 'Accessible toilets across the UK',
     subtitle,
-    icon: '♿',
+    icon: 'A11Y',
     accent: 'blue',
   });
 }

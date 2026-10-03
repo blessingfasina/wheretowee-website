@@ -9,24 +9,24 @@ import { ImageResponse } from 'next/og';
  * Satori renderer doesn't support CSS grid, advanced shadows or
  * external fonts (without explicit loading).
  *
- * @example
- *   export default function Image() {
- *     return renderOgCard({
- *       eyebrow: 'Accessible Toilets',
- *       title: 'Wheelchair-accessible loos across the UK',
- *       subtitle: '15,000+ listings · free · no sign-up',
- *       accent: 'blue',
- *     });
- *   }
- *   export const size = OG_SIZE;
- *   export const contentType = OG_CONTENT_TYPE;
+ * Important for crawler resilience:
+ *  - No emoji (Twemoji CDN fetches fail under concurrent Ahrefs/SEO
+ *    load and turn into 500s).
+ *  - Text is sanitised to a single string node (Satori crashes on
+ *    unexpected multi-child text containers).
+ *  - Long Cache-Control so successful renders aren't re-generated.
  */
 
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 export const OG_CONTENT_TYPE = 'image/png';
 
-// Accent colour palette — keyed off the in-app brand language so OG
-// cards stay visually consistent with each landing page's hero.
+const CACHE_HEADERS = {
+  // Successful OG cards are deterministic for a given toilet/city.
+  // Cache hard at the CDN so crawler bursts hit the edge, not the
+  // serverless function.
+  'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400',
+} as const;
+
 const ACCENT_PALETTE = {
   mint: { gradFrom: '#0e7c5b', gradTo: '#06532f', pill: '#22c08a', text: '#072c1d' },
   navy: { gradFrom: '#1e2a4a', gradTo: '#0c1530', pill: '#7aa0ff', text: '#0c1530' },
@@ -45,7 +45,11 @@ export interface OgCardConfig {
   title: string;
   /** Sub-text line below the title (e.g. count, location). */
   subtitle?: string;
-  /** Optional emoji / icon to anchor the card visually. */
+  /**
+   * Optional short ASCII/mark for the brand badge. Prefer letters over
+   * emoji — emoji force Satori to fetch Twemoji PNGs and that CDN is
+   * what fails under crawler concurrency.
+   */
   icon?: string;
   /** Visual accent. Defaults to brand mint. */
   accent?: OgAccent;
@@ -53,130 +57,221 @@ export interface OgCardConfig {
   siteLabel?: string;
 }
 
-/// Returns an `ImageResponse` configured for OG/Twitter share cards.
-/// Pure function — call from a route's `opengraph-image.tsx`.
-export function renderOgCard(config: OgCardConfig): ImageResponse {
-  const accent = ACCENT_PALETTE[config.accent ?? 'mint'];
-  const eyebrow = config.eyebrow;
-  const subtitle = config.subtitle;
-  const icon = config.icon ?? '🚻';
-  const siteLabel = config.siteLabel ?? 'wheretowee.uk';
+/// Strip characters that commonly crash Satori / Resvg under load.
+function sanitizeOgText(value: string | null | undefined, max = 140): string {
+  if (!value) return '';
+  return value
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    // Drop emoji / variation selectors — no Twemoji CDN dependency.
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\uFE0E\uFE0F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+}
 
-  return new ImageResponse(
-    (
+function buildOgElement(config: OgCardConfig) {
+  const accent = ACCENT_PALETTE[config.accent ?? 'mint'];
+  const eyebrow = sanitizeOgText(config.eyebrow, 48);
+  const title = sanitizeOgText(config.title, 90) || 'Where To Wee';
+  const subtitle = sanitizeOgText(config.subtitle, 160);
+  const icon = sanitizeOgText(config.icon, 4) || 'WTW';
+  const siteLabel = sanitizeOgText(config.siteLabel, 40) || 'wheretowee.uk';
+  const titleSize = title.length > 60 ? 56 : 72;
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '64px 72px',
+        background: `linear-gradient(135deg, ${accent.gradFrom} 0%, ${accent.gradTo} 100%)`,
+        color: 'white',
+        fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
       <div
         style={{
-          width: '100%',
-          height: '100%',
           display: 'flex',
-          flexDirection: 'column',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '64px 72px',
-          background: `linear-gradient(135deg, ${accent.gradFrom} 0%, ${accent.gradTo} 100%)`,
-          color: 'white',
-          fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+          width: '100%',
         }}
       >
-        {/* Top row: brand + site label */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 16,
-                backgroundColor: 'rgba(255,255,255,0.16)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 36,
-              }}
-            >
-              {icon}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>Where To Wee</div>
-              <div style={{ fontSize: 16, opacity: 0.7 }}>{siteLabel}</div>
-            </div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div
             style={{
+              width: 64,
+              height: 64,
+              borderRadius: 16,
+              backgroundColor: 'rgba(255,255,255,0.16)',
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              backgroundColor: 'rgba(255,255,255,0.12)',
-              padding: '8px 16px',
-              borderRadius: 999,
-              fontSize: 18,
-            }}
-          >
-            <span>🇬🇧</span>
-            <span>UK toilet finder</span>
-          </div>
-        </div>
-
-        {/* Centre block: eyebrow + title + subtitle */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {eyebrow && (
-            <div
-              style={{
-                display: 'flex',
-                alignSelf: 'flex-start',
-                backgroundColor: accent.pill,
-                color: accent.text,
-                padding: '8px 18px',
-                borderRadius: 999,
-                fontSize: 22,
-                fontWeight: 700,
-                letterSpacing: 0.6,
-                textTransform: 'uppercase',
-              }}
-            >
-              {eyebrow}
-            </div>
-          )}
-          <div
-            style={{
-              fontSize: config.title.length > 60 ? 56 : 72,
+              justifyContent: 'center',
+              fontSize: icon.length > 2 ? 18 : 28,
               fontWeight: 800,
-              lineHeight: 1.05,
-              letterSpacing: -1.5,
-              maxWidth: 1000,
             }}
           >
-            {config.title}
+            {icon}
           </div>
-          {subtitle && (
-            <div style={{ fontSize: 28, opacity: 0.85, maxWidth: 950, lineHeight: 1.3 }}>
-              {subtitle}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>
+              Where To Wee
             </div>
-          )}
+            <div style={{ fontSize: 16, opacity: 0.7 }}>{siteLabel}</div>
+          </div>
         </div>
-
-        {/* Bottom row: CTA reinforcement */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 22, opacity: 0.9 }}>
-            <span>📍</span>
-            <span>15,000+ public toilets · accessibility-first · free</span>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              backgroundColor: 'white',
-              color: accent.text,
-              padding: '12px 24px',
-              borderRadius: 12,
-              fontSize: 22,
-              fontWeight: 700,
-            }}
-          >
-            Find one near you →
-          </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: 'rgba(255,255,255,0.12)',
+            padding: '8px 16px',
+            borderRadius: 999,
+            fontSize: 18,
+          }}
+        >
+          UK toilet finder
         </div>
       </div>
-    ),
-    { ...OG_SIZE },
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {eyebrow ? (
+          <div
+            style={{
+              display: 'flex',
+              alignSelf: 'flex-start',
+              backgroundColor: accent.pill,
+              color: accent.text,
+              padding: '8px 18px',
+              borderRadius: 999,
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+            }}
+          >
+            {eyebrow}
+          </div>
+        ) : null}
+        <div
+          style={{
+            fontSize: titleSize,
+            fontWeight: 800,
+            lineHeight: 1.05,
+            letterSpacing: -1.5,
+            maxWidth: 1000,
+            display: 'flex',
+          }}
+        >
+          {title}
+        </div>
+        {subtitle ? (
+          <div
+            style={{
+              fontSize: 28,
+              opacity: 0.85,
+              maxWidth: 950,
+              lineHeight: 1.3,
+              display: 'flex',
+            }}
+          >
+            {subtitle}
+          </div>
+        ) : null}
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: 22,
+            opacity: 0.9,
+          }}
+        >
+          15,000+ public toilets · accessibility-first · free
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: 'white',
+            color: accent.text,
+            padding: '12px 24px',
+            borderRadius: 12,
+            fontSize: 22,
+            fontWeight: 700,
+          }}
+        >
+          Find one near you
+        </div>
+      </div>
+    </div>
   );
+}
+
+/// Returns an `ImageResponse` configured for OG/Twitter share cards.
+export function renderOgCard(config: OgCardConfig): ImageResponse {
+  return new ImageResponse(buildOgElement(config), {
+    ...OG_SIZE,
+    headers: CACHE_HEADERS,
+  });
+}
+
+/// Never-throwing wrapper used by high-cardinality routes (per-toilet
+/// OG). If Satori/Resvg or upstream data fails, return a brand card
+/// instead of a 500 — SEO crawlers were turning those into alerts.
+export function safeRenderOgCard(
+  config: OgCardConfig,
+  fallback: OgCardConfig = {
+    eyebrow: 'Where To Wee',
+    title: 'Find public toilets near you',
+    subtitle: '15,000+ UK listings · free · no sign-up',
+    accent: 'navy',
+    icon: 'WTW',
+  },
+): ImageResponse {
+  try {
+    return renderOgCard(config);
+  } catch (err) {
+    console.error('renderOgCard failed, using fallback', err);
+    try {
+      return renderOgCard(fallback);
+    } catch (fallbackErr) {
+      console.error('fallback renderOgCard also failed', fallbackErr);
+      // Absolute last resort — still an ImageResponse so Next doesn't 500.
+      return new ImageResponse(
+        (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#1e2a4a',
+              color: 'white',
+              fontSize: 64,
+              fontWeight: 800,
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          >
+            Where To Wee
+          </div>
+        ),
+        { ...OG_SIZE, headers: CACHE_HEADERS },
+      );
+    }
+  }
 }

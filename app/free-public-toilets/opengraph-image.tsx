@@ -17,7 +17,7 @@ export default async function Image() {
     eyebrow: 'Free toilets · UK',
     title: 'Free public toilets near you',
     subtitle,
-    icon: '🪙',
+    icon: 'FREE',
     accent: 'mint',
   });
 }

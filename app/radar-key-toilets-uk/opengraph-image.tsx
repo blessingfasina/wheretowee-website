@@ -17,7 +17,7 @@ export default async function Image() {
     eyebrow: 'RADAR key · UK',
     title: 'Where to use your RADAR key',
     subtitle,
-    icon: '🔑',
+    icon: 'KEY',
     accent: 'indigo',
   });
 }

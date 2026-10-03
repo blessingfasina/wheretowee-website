@@ -10,7 +10,7 @@ export default function Image() {
     eyebrow: 'Guide · UK',
     title: 'The RADAR key, explained',
     subtitle: '10,000+ accessible toilets · one key · £5 from Disability Rights UK',
-    icon: '🔑',
+    icon: 'KEY',
     accent: 'indigo',
   });
 }

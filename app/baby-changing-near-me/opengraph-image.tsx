@@ -17,7 +17,7 @@ export default async function Image() {
     eyebrow: 'Baby changing · UK',
     title: 'Baby changing facilities near you',
     subtitle,
-    icon: '🍼',
+    icon: 'BABY',
     accent: 'orange',
   });
 }

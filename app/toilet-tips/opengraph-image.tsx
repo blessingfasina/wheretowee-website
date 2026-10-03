@@ -10,7 +10,7 @@ export default function Image() {
     eyebrow: 'Guide · UK',
     title: 'Where to find a toilet on the move',
     subtitle: 'Motorway services · train stations · shopping centres · libraries · museums',
-    icon: '🧭',
+    icon: 'TIPS',
     accent: 'navy',
   });
 }
