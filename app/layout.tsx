@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Analytics from '@/components/Analytics';
 import ChatWidget from '@/components/ChatWidget';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/next';
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -196,8 +197,8 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
         <ChatWidget />
+        <VercelAnalytics />
       </body>
     </html>
   );
 }
-
