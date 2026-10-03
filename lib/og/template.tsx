@@ -63,8 +63,12 @@ function sanitizeOgText(value: string | null | undefined, max = 140): string {
   return value
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
     // Drop emoji / variation selectors — no Twemoji CDN dependency.
-    .replace(/\p{Extended_Pictographic}/gu, '')
-    .replace(/[\uFE0E\uFE0F]/g, '')
+    // Avoid `\p{...}` / `u` flags: the project's TS target rejects them
+    // at build time even though Node itself supports them.
+    .replace(
+      /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|[\uFE0E\uFE0F]/g,
+      '',
+    )
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, max);
