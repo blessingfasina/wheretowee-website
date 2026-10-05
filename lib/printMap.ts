@@ -69,25 +69,36 @@ export type PrintArea =
 
 export function printArea(toilet: Toilet): PrintArea {
   const hay = `${toilet.name} ${toilet.address || ''}`.toLowerCase();
-  if (
-    /portslade|vale park|easthill|greenleas|victoria/.test(hay)
-  ) {
+  if (/portslade|vale park|easthill|greenleas|victoria/.test(hay)) {
     return 'Portslade & west';
   }
+  // Specific north-brighton parks before the broad Hove match (Dyke Road /
+  // Preston / Blakers were falling into Hove or seafront).
   if (
-    /hove|goldstone|king alfred|esplanade|lagoon|sports hub|cemetery|st ann/.test(
+    /stanmer|wild park|hollingbury|dyke road|preston park|blakers|blaker[’']?s/.test(
       hay,
     )
   ) {
-    return 'Hove';
+    return 'North Brighton';
   }
+  // Lawn Memorial before generic "cemetery" (which is treated as Hove).
   if (
     /rottingdean|saltdean|ovingdean|woodingdean|lawn memorial/.test(hay)
   ) {
     return 'Rottingdean, Saltdean & east';
   }
-  if (/stanmer|wild park|hollingbury/.test(hay)) {
-    return 'North Brighton';
+  // Colonnade / Madeira Drive are seafront — avoid matching "Hove" inside
+  // the address string "Brighton and Hove".
+  if (/colonnade|madeira/.test(hay)) {
+    return 'Brighton seafront & centre';
+  }
+  const hoveHay = hay.replace(/brighton and hove/g, ' ');
+  if (
+    /\bhove\b|goldstone|king alfred|esplanade|lagoon|sports hub|cemetery|st ann/.test(
+      hoveHay,
+    )
+  ) {
+    return 'Hove';
   }
   return 'Brighton seafront & centre';
 }
