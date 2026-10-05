@@ -16,6 +16,7 @@ import {
   Shield,
 } from 'lucide-react';
 import DidYouKnow from '@/components/DidYouKnow';
+import BrandLogo from '@/components/BrandLogo';
 
 export const metadata: Metadata = {
   alternates: {
@@ -167,7 +168,9 @@ export default function HomePage() {
                 {/* Phone mockup placeholder */}
                 <div className="w-72 h-[580px] bg-gradient-to-b from-navy-500 to-navy-700 rounded-[3rem] border-8 border-navy-400 shadow-2xl flex items-center justify-center">
                   <div className="text-center p-8">
-                    <div className="text-7xl mb-4">🚻</div>
+                    <div className="flex justify-center mb-4">
+                      <BrandLogo size={72} />
+                    </div>
                     <div className="text-2xl font-bold mb-2">Where To Wee</div>
                     <div className="text-gray-300 text-sm">App Preview</div>
                     <div className="mt-8 space-y-2">

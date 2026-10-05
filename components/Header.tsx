@@ -18,6 +18,7 @@ import {
   Key,
   Compass,
 } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 
 /**
  * Sub-menu items for the "Find a Toilet" dropdown.
@@ -110,9 +111,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-3xl" role="img" aria-label="toilet">
-              🚻
-            </span>
+            <BrandLogo size={36} priority />
             <span className="font-bold text-xl text-navy-600 group-hover:text-navy-700 transition-colors">
               Where To Wee
             </span>

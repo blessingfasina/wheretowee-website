@@ -199,7 +199,7 @@ export default function PressPage() {
               </div>
               
               <div className="bg-gradient-to-br from-navy-500 to-navy-700 text-white p-8 rounded-2xl">
-                <div className="text-5xl font-bold mb-2">18,000+</div>
+                <div className="text-5xl font-bold mb-2">35,000+</div>
                 <div className="text-white/90 text-lg">People using Where To Wee across iOS, Android and the web</div>
                 <div className="mt-4 text-sm text-white/70">Source: Google Analytics, 2026</div>
               </div>

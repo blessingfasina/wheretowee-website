@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { MapPin, Mail, Heart } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 
 const footerLinks = {
   product: [
@@ -58,7 +59,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <span className="text-3xl">🚻</span>
+              <BrandLogo size={36} />
               <span className="font-bold text-xl">Where To Wee</span>
             </Link>
             <p className="text-gray-400 text-sm mb-4">

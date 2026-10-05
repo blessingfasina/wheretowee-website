@@ -19,6 +19,7 @@ import {
   Download,
 } from 'lucide-react';
 import { trackWaitlistSignup, trackAppDownload } from '@/lib/analytics';
+import BrandLogo from '@/components/BrandLogo';
 
 const features = [
   {
@@ -214,8 +215,9 @@ export default function DownloadPage() {
                 <div className="relative">
                   <div className="w-72 h-[580px] bg-gradient-to-b from-white to-gray-100 rounded-[3rem] border-8 border-gray-300 shadow-2xl flex flex-col overflow-hidden">
                     {/* Status bar */}
-                    <div className="h-12 bg-navy-600 flex items-center justify-center">
-                      <span className="text-white text-sm font-semibold">🚻 Where To Wee</span>
+                    <div className="h-12 bg-navy-600 flex items-center justify-center gap-2">
+                      <BrandLogo size={18} />
+                      <span className="text-white text-sm font-semibold">Where To Wee</span>
                     </div>
                     {/* Content */}
                     <div className="flex-1 bg-gray-100 p-4">
@@ -527,8 +529,9 @@ export default function DownloadPage() {
 
                 <div className="w-72 h-[580px] bg-gradient-to-b from-white to-gray-100 rounded-[3rem] border-8 border-gray-300 shadow-2xl flex flex-col overflow-hidden opacity-80">
                   {/* Status bar */}
-                  <div className="h-12 bg-navy-600 flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">🚻 Where To Wee</span>
+                  <div className="h-12 bg-navy-600 flex items-center justify-center gap-2">
+                    <BrandLogo size={18} />
+                    <span className="text-white text-sm font-semibold">Where To Wee</span>
                   </div>
                   {/* Content */}
                   <div className="flex-1 bg-gray-100 p-4">
