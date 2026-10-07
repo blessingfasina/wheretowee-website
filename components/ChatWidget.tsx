@@ -22,6 +22,8 @@ interface ChatMsg {
   sender: 'user' | 'admin';
   body: string;
   created_at: string;
+  /** human | ai | system — system is a centred notice, not a bubble */
+  source?: 'human' | 'ai' | 'system' | string;
 }
 
 const POLL_MS = 4000;
@@ -237,33 +239,49 @@ export default function ChatWidget() {
                 </p>
               </div>
             ) : (
-              messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={`flex ${m.sender === 'admin' ? 'justify-start' : 'justify-end'}`}
-                >
+              messages.map((m) =>
+                m.source === 'system' ? (
                   <div
-                    className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                      m.sender === 'admin'
-                        ? 'rounded-bl-sm bg-white text-gray-800 shadow-sm'
-                        : 'rounded-br-sm text-white'
-                    }`}
-                    style={m.sender === 'admin' ? undefined : { backgroundColor: '#1E3A5F' }}
+                    key={m.id}
+                    className="flex justify-center px-2 py-1.5 animate-fade-in"
                   >
-                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                    <p
-                      className={`mt-1 text-right text-[10px] ${
-                        m.sender === 'admin' ? 'text-gray-400' : 'text-white/70'
-                      }`}
+                    <div
+                      className="max-w-[92%] rounded-full border border-navy-600/10 bg-navy-50 px-3.5 py-1.5 text-center text-[11px] font-medium leading-snug text-navy-700 shadow-sm"
+                      role="status"
                     >
-                      {new Date(m.created_at).toLocaleTimeString('en-GB', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
+                      {m.body}
+                    </div>
                   </div>
-                </div>
-              ))
+                ) : (
+                  <div
+                    key={m.id}
+                    className={`flex ${m.sender === 'admin' ? 'justify-start' : 'justify-end'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                        m.sender === 'admin'
+                          ? 'rounded-bl-sm bg-white text-gray-800 shadow-sm'
+                          : 'rounded-br-sm text-white'
+                      }`}
+                      style={
+                        m.sender === 'admin' ? undefined : { backgroundColor: '#1E3A5F' }
+                      }
+                    >
+                      <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      <p
+                        className={`mt-1 text-right text-[10px] ${
+                          m.sender === 'admin' ? 'text-gray-400' : 'text-white/70'
+                        }`}
+                      >
+                        {new Date(m.created_at).toLocaleTimeString('en-GB', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ),
+              )
             )}
           </div>
 
