@@ -4,7 +4,7 @@
  * Single source of truth used by:
  *  - The city directory landing page (`app/toilets/[city]/page.tsx`)
  *  - The toilet detail route (`app/toilets/[city]/[slug]/page.tsx`)
- *  - The sitemap (`app/sitemap.ts`)
+ *  - The sitemap (`lib/sitemap.ts`)
  *  - The new intent / category pages (`app/free-public-toilets`, etc.)
  *
  * Adding a new city = single entry here; everything else picks it up

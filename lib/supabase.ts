@@ -203,25 +203,108 @@ export function isGenericToiletName(name: string | null | undefined): boolean {
 /**
  * Decide whether a toilet detail page is worth asking Google to index.
  *
- * Index anything with a distinctive venue name. Keep noindex only for
- * generic stubs ("loo", bare "toilet") which collide with each other
- * and with the city landing page. Sitemap still caps how many of the
- * indexable set we actively push.
+ * Index anything with a distinctive venue name. Generic stubs ("loo",
+ * bare "toilet") stay noindex because they collide with each other and
+ * with the city landing page — unless the row has a proper street
+ * address AND enough real data (see [toiletQualityScore]) to stand as
+ * its own page, in which case it is shown as e.g.
+ * "Public Toilet, Albert Road" and indexed.
  */
-export function isIndexWorthyToilet(t: {
+export function isIndexWorthyToilet(t: ToiletQualityFields & {
   name?: string | null;
   status?: string | null;
-  rating_count?: number | null;
-  verified_source?: string | null;
-  verified_at?: string | null;
-  last_confirmed_at?: string | null;
-  hoist?: string | null;
-  radar_key?: string | null;
+  address?: string | null;
 }): boolean {
   const status = (t.status ?? 'active').toLowerCase();
   if (status && status !== 'active' && status !== 'approved') return false;
-  if (isGenericToiletName(t.name)) return false;
+  if (isGenericToiletName(t.name)) {
+    return streetFromAddress(t.address) != null &&
+      toiletQualityScore(t) >= SITEMAP_MIN_QUALITY;
+  }
   return true;
+}
+
+/// Fields that feed [toiletQualityScore]. All optional so callers can
+/// pass partial rows; missing fields simply score zero.
+export interface ToiletQualityFields {
+  wheelchair?: string | null;
+  baby_changing?: string | null;
+  fee?: string | null;
+  radar_key?: string | null;
+  opening_hours?: string | null;
+  notes?: string | null;
+  verified_source?: string | null;
+  verified_at?: string | null;
+  rating_count?: number | null;
+  confirmation_count?: number | null;
+}
+
+/// Minimum [toiletQualityScore] for a toilet page to be listed in the
+/// sitemap. Google left ~5,300 thin toilet pages as "Discovered /
+/// Crawled – currently not indexed" when we pushed all 8,000 of them,
+/// so the sitemap now only promotes pages with enough unique data to
+/// be worth indexing. Pages below the bar stay live and indexable
+/// (nothing gets a noindex) — they're just not pushed at Google.
+/// Raise to tighten, lower to loosen. At 6, roughly 40% of named
+/// venues qualify (sampled Nov 2026).
+export const SITEMAP_MIN_QUALITY = 6;
+
+function hasValue(v: string | null | undefined): boolean {
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s !== '' && s !== 'unknown';
+}
+
+/**
+ * How much unique, useful information a toilet page carries.
+ *
+ * +1 each for known wheelchair / baby changing / fee / RADAR / hours,
+ * +2 for a real note (>=20 chars of human-written text),
+ * +2 for council/community verification, +2 for user ratings,
+ * +1 for user confirmations. Max 12.
+ */
+export function toiletQualityScore(t: ToiletQualityFields): number {
+  let score = 0;
+  if (hasValue(t.wheelchair)) score += 1;
+  if (hasValue(t.baby_changing)) score += 1;
+  if (hasValue(t.fee)) score += 1;
+  if (hasValue(t.radar_key)) score += 1;
+  if (hasValue(t.opening_hours)) score += 1;
+  if (hasValue(t.notes) && String(t.notes).trim().length >= 20) score += 2;
+  if (t.verified_source || t.verified_at) score += 2;
+  if ((t.rating_count ?? 0) > 0) score += 2;
+  if ((t.confirmation_count ?? 0) > 0) score += 1;
+  return score;
+}
+
+/// Should this toilet's page be listed in the sitemap?
+export function isSitemapWorthyToilet(t: ToiletQualityFields & {
+  name?: string | null;
+  status?: string | null;
+  address?: string | null;
+}): boolean {
+  return isIndexWorthyToilet(t) && toiletQualityScore(t) >= SITEMAP_MIN_QUALITY;
+}
+
+/// First address part when it looks like a street ("12 Albert Road,
+/// Portsmouth" -> "12 Albert Road"). Returns null for addresses that
+/// are only a borough/town ("Westminster"), which would just collide.
+export function streetFromAddress(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const first = parts[0];
+  if (first.length < 4 || first.length > 60) return null;
+  return first;
+}
+
+/// Human-facing name for a toilet. Generic stubs ("loo", "toilet")
+/// become "Public Toilet, Albert Road" when we know the street, so
+/// titles and headings aren't dozens of identical "loo" pages.
+export function toiletDisplayName(t: { name?: string | null; address?: string | null }): string {
+  if (!isGenericToiletName(t.name)) return (t.name ?? '').trim();
+  const street = streetFromAddress(t.address);
+  return street ? `Public Toilet, ${street}` : 'Public Toilet';
 }
 
 /**
@@ -544,14 +627,10 @@ export async function getToiletEnrichment(
   }
 }
 
-/// Light-weight pagination helper for the sitemap and any future
-/// admin pages. Returns just the columns needed to build a URL and
-/// fall back to a freshness signal.
-///
-/// By default this only returns rows that pass [isIndexWorthyToilet]
-/// — i.e. the ones we actually want Google to crawl. Pass
-/// `{ onlyIndexable: false }` if a caller (e.g. a future admin page)
-/// genuinely wants the full active catalogue.
+/// Pagination helper for the sitemap. By default only returns rows
+/// that pass [isSitemapWorthyToilet] — the pages we actively want
+/// Google to crawl. Pass `{ onlyIndexable: false }` for the full
+/// active catalogue.
 export async function getToiletSitemapPage(
   offset: number,
   limit: number,
@@ -570,11 +649,13 @@ export async function getToiletSitemapPage(
   const onlyIndexable = opts.onlyIndexable ?? true;
   const tableName = await getActiveToiletTable();
 
+  // `*` rather than a column list: the quality score reads several
+  // optional columns, and naming one that a table version lacks would
+  // make PostgREST fail the whole query (= empty sitemap).
   const { data, error } = await supabase
     .from(tableName)
-    .select('id, name, address, updated_at, created_at, latitude, longitude, rating_count')
+    .select('*')
     .or('status.eq.active,status.eq.approved')
-    .order('rating_count', { ascending: false, nullsFirst: false })
     .order('id', { ascending: true })
     .range(offset, offset + limit - 1);
 
@@ -584,29 +665,21 @@ export async function getToiletSitemapPage(
   }
   // `scanned` is the unfiltered page size from PostgREST. Callers must
   // use this (not `rows.length`) to decide whether to fetch the next
-  // page — JS filters like [isIndexWorthyToilet] shrink `rows` and
-  // would otherwise stop pagination after the first thousand ids.
-  const scanned = (data ?? []).length;
-  const rows = (data ?? []).map((row: {
-    id: number;
-    name: string | null;
-    address: string | null;
-    updated_at?: string | null;
-    created_at?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  }) => ({
-    id: row.id,
-    name: row.name,
-    address: row.address,
-    updated_at: row.updated_at ?? row.created_at ?? null,
-    latitude: row.latitude ?? null,
-    longitude: row.longitude ?? null,
-  }));
-  return {
-    rows: onlyIndexable ? rows.filter((row) => isIndexWorthyToilet(row)) : rows,
-    scanned,
-  };
+  // page — JS filters shrink `rows` and would otherwise stop
+  // pagination after the first thousand ids.
+  const raw = (data ?? []) as Array<Toilet & { updated_at?: string | null }>;
+  const scanned = raw.length;
+  const rows = raw
+    .filter((row) => !onlyIndexable || isSitemapWorthyToilet(row))
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      address: row.address,
+      updated_at: row.updated_at ?? row.created_at ?? null,
+      latitude: row.latitude ?? null,
+      longitude: row.longitude ?? null,
+    }));
+  return { rows, scanned };
 }
 
 /// Kind of "intent" landing page. Each variant maps to a different

@@ -27,6 +27,7 @@ import {
   needsReconfirmation,
   confidenceLevelFor,
   isIndexWorthyToilet,
+  toiletDisplayName,
   getNearbyToilets,
   citySlugForToilet,
   canonicalToiletPath,
@@ -115,7 +116,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (toilet.radar_key === 'yes') facilityBits.push('RADAR key required');
   const facilityCopy = facilityBits.length > 0 ? ` (${facilityBits.join(', ')})` : '';
 
-  const title = `${toilet.name} — Public Toilet in ${cityName}`;
+  const displayName = toiletDisplayName(toilet);
+  const title = `${displayName} — Public Toilet in ${cityName}`;
   const description = toilet.address
     ? `Public toilet at ${toilet.address}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`
     : `Public toilet in ${cityName}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`;
@@ -208,6 +210,7 @@ export default async function ToiletDetailPage({ params }: Props) {
   const canonicalPath = enforceCanonicalToiletUrl(city, slug, toilet);
   const canonicalUrl = `${SITE_ORIGIN}${canonicalPath}`;
   const canonicalCity = citySlugForToilet(toilet, city) ?? city;
+  const displayName = toiletDisplayName(toilet);
 
   // Fetch trust signals + accessibility metadata in parallel.
   const { verification, confidence, accessibility } = await getToiletEnrichment([toilet.id]);
@@ -268,7 +271,7 @@ export default async function ToiletDetailPage({ params }: Props) {
     <>
       <ToiletDetailImpression
         toiletId={toilet.id}
-        toiletName={toilet.name}
+        toiletName={displayName}
         citySlug={canonicalCity}
         verificationTier={tier}
         confidenceScore={hasSignals ? confidenceScore : null}
@@ -287,10 +290,10 @@ export default async function ToiletDetailPage({ params }: Props) {
               {cityName}
             </Link>
             <ChevronRight className="w-4 h-4" />
-            <span className="truncate max-w-[200px]">{toilet.name}</span>
+            <span className="truncate max-w-[200px]">{displayName}</span>
           </nav>
           <h1 className="text-3xl md:text-4xl font-bold mb-3">
-            {toilet.name}
+            {displayName}
           </h1>
           {toilet.address && (
             <p className="flex items-start gap-2 text-gray-200 mb-4">
@@ -327,7 +330,7 @@ export default async function ToiletDetailPage({ params }: Props) {
             <TrackedDirectionsLink
               href={`https://www.google.com/maps/dir/?api=1&destination=${toilet.latitude},${toilet.longitude}`}
               toiletId={toilet.id}
-              toiletName={toilet.name}
+              toiletName={displayName}
               source="detail_page"
               className="btn btn-mint"
             >
@@ -352,7 +355,7 @@ export default async function ToiletDetailPage({ params }: Props) {
         <MiniMap
           lat={toilet.latitude}
           lng={toilet.longitude}
-          alt={`Map showing the location of ${toilet.name} in ${cityName}`}
+          alt={`Map showing the location of ${displayName} in ${cityName}`}
         />
       </section>
 
@@ -574,7 +577,7 @@ export default async function ToiletDetailPage({ params }: Props) {
                   Other toilets nearby
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  Within 1.5 km of {toilet.name} — handy if this one&apos;s shut.
+                  Within 1.5 km of {displayName} — handy if this one&apos;s shut.
                 </p>
               </div>
               <Link
@@ -642,7 +645,7 @@ export default async function ToiletDetailPage({ params }: Props) {
             '@context': 'https://schema.org',
             '@type': 'PublicToilet',
             '@id': canonicalUrl,
-            name: toilet.name,
+            name: displayName,
             ...(toilet.address && {
               address: {
                 '@type': 'PostalAddress',
@@ -707,7 +710,7 @@ export default async function ToiletDetailPage({ params }: Props) {
               { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_ORIGIN },
               { '@type': 'ListItem', position: 2, name: 'Cities', item: `${SITE_ORIGIN}/toilets` },
               { '@type': 'ListItem', position: 3, name: cityName, item: `${SITE_ORIGIN}/toilets/${canonicalCity}` },
-              { '@type': 'ListItem', position: 4, name: toilet.name, item: canonicalUrl },
+              { '@type': 'ListItem', position: 4, name: displayName, item: canonicalUrl },
             ],
           }),
         }}

@@ -3,15 +3,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { MapPin, Star, Accessibility, Baby, Coins, Navigation, ChevronRight, ShieldCheck, BadgeCheck, Clock, Key, Trophy, Building2, HelpCircle } from 'lucide-react';
 import {
-  supabase,
-  getActiveToiletTable,
   getToiletEnrichment,
   resolveVerificationTier,
   canonicalToiletPath,
+  toiletDisplayName,
   type Toilet,
   type VerificationTier,
 } from '@/lib/supabase';
-import { CITIES, CITY_BY_SLUG, belongsToCity, type CityInfo } from '@/lib/cities';
+import { CITIES, type CityInfo } from '@/lib/cities';
+import { getCityCatalogue, roundedCount } from '@/lib/cityCatalogue';
 
 // Revalidate the city pages every hour. New toilets / freshly
 // confirmed status changes show up without a redeploy, but we still
@@ -68,10 +68,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const cityName = cityInfo.fullName;
+  const cat = await getCityCatalogue(city);
+
+  // Most of this page's impressions come from "toilets near me" searches
+  // made in the city, so the title leads with the city + "near you" and
+  // states the real catalogue size. Absolute (no " | Where To Wee") to
+  // stay inside Google's ~60-char display width.
+  const title =
+    cat.total > 0
+      ? `Public Toilets in ${cityName} Near You: ${roundedCount(cat.total)} on a Live Map`
+      : `Public Toilets in ${cityName} Near You | Live Toilet Map`;
+  const areaCopy =
+    cat.areas.length > 0 ? ` across all ${cat.areas.length} boroughs` : '';
+  const description =
+    cat.total > 0
+      ? `Find the nearest public toilet in ${cityName}: ${cat.total.toLocaleString('en-GB')} toilets${areaCopy}, including ${cat.free.toLocaleString('en-GB')} free, ${cat.accessible.toLocaleString('en-GB')} wheelchair accessible and ${cat.babyChanging.toLocaleString('en-GB')} with baby changing. Opening hours and directions.`
+      : `Need a toilet in ${cityName}? See free and accessible public toilets near you with opening hours, wheelchair access, RADAR key and baby changing info, plus directions on a live map.`;
 
   return {
-    title: `Public Toilets ${cityName} - Find Nearest Loo NOW | Free Map`,
-    description: `Need a toilet in ${cityName}? Find the nearest loo instantly! 50+ public toilets with wheelchair access, baby change & free options. Interactive map.`,
+    title: { absolute: title },
+    description,
     keywords: [
       `toilets near me ${cityName}`,
       `public toilets ${cityName}`,
@@ -83,8 +99,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       `nearest toilet ${cityName}`,
     ],
     openGraph: {
-      title: `Find Toilets Near Me in ${cityName} | Where To Wee`,
-      description: `Find clean, accessible public toilets in ${cityName}. View ratings, accessibility info, and get directions to the nearest loo.`,
+      title,
+      description,
       url: `https://wheretowee.uk/toilets/${city}`,
       type: 'website',
     },
@@ -103,38 +119,6 @@ export async function generateStaticParams() {
   return Object.keys(cityCoordinates).map((city) => ({
     city,
   }));
-}
-
-/// Fetch real toilets for a city via the active toilet table. Pulls
-/// up to 60 rows ordered by recency so the city page always shows
-/// fresh content. Returns an empty list (and we render an empty state)
-/// if the query fails — never throws, so a Supabase outage degrades
-/// gracefully rather than breaking SEO.
-async function fetchCityToilets(city: string, fullName: string): Promise<Toilet[]> {
-  try {
-    const tableName = await getActiveToiletTable();
-    // Match on both the slug ("milton-keynes") and the display name
-    // ("Milton Keynes") to maximise hit rate. ILIKE is case-insensitive.
-    const slugForLike = fullName.replace(/\s+/g, '%');
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('*')
-      .or('status.eq.active,status.eq.approved')
-      .or(`address.ilike.%${slugForLike}%,address.ilike.%${city}%`)
-      .order('id', { ascending: false })
-      .limit(150);
-    if (error) {
-      console.error(`fetchCityToilets(${city}) error:`, error);
-      return [];
-    }
-    const rows = (data ?? []) as Toilet[];
-    const cityMeta = CITY_BY_SLUG[city];
-    if (!cityMeta) return rows.slice(0, 60);
-    return rows.filter((t) => belongsToCity(t, cityMeta)).slice(0, 60);
-  } catch (e) {
-    console.error(`fetchCityToilets(${city}) threw:`, e);
-    return [];
-  }
 }
 
 /// Small badge component used in the inline list of toilets. Mirrors
@@ -207,18 +191,23 @@ export default async function CityPage({ params }: Props) {
   // Pull real data from Supabase. Falls back to an empty array if the
   // query fails so the rest of the page (hero + SEO copy + CTA) still
   // renders and indexes correctly.
-  const toilets = await fetchCityToilets(city, cityInfo.fullName);
+  const catalogue = await getCityCatalogue(city);
+  const toilets = catalogue.toilets as unknown as Toilet[];
+  const total = catalogue.total;
+  const totalLabel = total.toLocaleString('en-GB');
 
   // Enrich with verification info so trust-signal badges can render
   // alongside the existing accessibility chips. Batched in one RPC.
   const ids = toilets.map((t) => t.id);
   const { verification } = await getToiletEnrichment(ids);
 
-  const accessibleCount = toilets.filter((t) => t.wheelchair === 'yes').length;
-  const babyCount = toilets.filter((t) => t.baby_changing === 'yes').length;
-  const freeCount = toilets.filter((t) => t.fee === 'no' || t.fee === 'free').length;
-  const radarCount = toilets.filter((t) => t.radar_key === 'yes').length;
-  const changingPlacesCount = toilets.filter((t) => t.hoist === 'yes').length;
+  // Counts come from the full city catalogue, not the 60 cards shown.
+  const accessibleCount = catalogue.accessible;
+  const babyCount = catalogue.babyChanging;
+  const freeCount = catalogue.free;
+  const radarCount = catalogue.radar;
+  const changingPlacesCount = catalogue.changingPlaces;
+  const areas = catalogue.areas;
 
   // Top 3 rated toilets for the highlight section — only show when
   // we have at least one rating to avoid surfacing random unrated rows.
@@ -236,7 +225,7 @@ export default async function CityPage({ params }: Props) {
   const cityFaq: Array<{ q: string; a: string }> = [
     {
       q: `Where can I find a public toilet in ${cityInfo.fullName}?`,
-      a: `${cityInfo.fullName} has ${toilets.length || 'many'} public toilets in our database — across shopping centres, train stations, council-run public conveniences, libraries, museums and supermarkets. Use the map at the top of this page or download the Where To Wee app to find the nearest one to you in seconds.`,
+      a: `${cityInfo.fullName} has ${total > 0 ? totalLabel : 'many'} public toilets in our database${areas.length > 0 ? `, spread across ${areas.length} boroughs (${areas.slice(0, 3).map((a) => `${a.name} ${a.count}`).join(', ')} have the most)` : ''} — across shopping centres, train stations, council-run public conveniences, libraries, museums and supermarkets. Use the map at the top of this page or download the Where To Wee app to find the nearest one to you in seconds.`,
     },
     {
       q: `Are there free public toilets in ${cityInfo.fullName}?`,
@@ -272,8 +261,8 @@ export default async function CityPage({ params }: Props) {
             Public Toilets in {cityInfo.fullName}
           </h1>
           <p className="text-lg text-gray-300 mb-6 max-w-2xl">
-            {toilets.length > 0
-              ? `Find ${toilets.length}+ public toilets in ${cityInfo.fullName}. View accessibility information, baby changing facilities, ratings, and get directions.`
+            {total > 0
+              ? `${totalLabel} public toilets in ${cityInfo.fullName}${areas.length > 0 ? ` across ${areas.length} boroughs` : ''}, with opening hours, accessibility, baby changing and directions to the nearest one.`
               : `Explore public toilets across ${cityInfo.fullName}. Use our interactive map to find accessibility info, baby changing facilities, and get directions.`}
           </p>
           <div className="flex flex-wrap gap-3">
@@ -298,7 +287,7 @@ export default async function CityPage({ params }: Props) {
         <div className="container-custom">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-xl md:text-2xl font-bold text-navy-600">{toilets.length}+</div>
+              <div className="text-xl md:text-2xl font-bold text-navy-600">{totalLabel}</div>
               <div className="text-gray-600 text-sm">Total Toilets</div>
             </div>
             <div>
@@ -321,9 +310,17 @@ export default async function CityPage({ params }: Props) {
       <section className="section">
         <div className="container-custom">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-navy-800">
-              Toilets in {cityInfo.fullName}
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold text-navy-800">
+                Best-documented toilets in {cityInfo.fullName}
+              </h2>
+              {total > toilets.length && (
+                <p className="text-sm text-gray-600 mt-1">
+                  The {toilets.length} listings with the most complete info. See all {totalLabel} on the map
+                  {areas.length > 0 ? ' or browse by borough below' : ''}.
+                </p>
+              )}
+            </div>
             <Link href={`/map?lat=${cityInfo.lat}&lng=${cityInfo.lng}`} className="btn btn-secondary">
               <MapPin className="w-4 h-4" />
               Map View
@@ -359,7 +356,7 @@ export default async function CityPage({ params }: Props) {
                         href={detailHref}
                         className="font-bold text-navy-800 hover:text-mint-600 transition-colors"
                       >
-                        {toilet.name}
+                        {toiletDisplayName(toilet)}
                       </Link>
                       {toilet.average_rating && (
                         <div className="flex items-center gap-1 text-sm flex-shrink-0">
@@ -418,6 +415,53 @@ export default async function CityPage({ params }: Props) {
           )}
         </div>
       </section>
+
+      {/* Browse by area (London boroughs) — links every area's best
+          listings so deep toilet pages are reachable within two clicks. */}
+      {areas.length > 0 && (
+        <section className="section bg-gray-50" id="by-area">
+          <div className="container-custom">
+            <h2 className="text-2xl md:text-3xl font-bold text-navy-800 mb-2">
+              Public toilets in {cityInfo.fullName} by borough
+            </h2>
+            <p className="text-gray-600 mb-8 max-w-3xl">
+              {totalLabel} toilets across {areas.length} boroughs. Each borough lists its
+              best-documented toilets; open the map to see every one near you.
+            </p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {areas.map((area) => (
+                <div key={area.name} className="card border border-gray-100">
+                  <div className="flex items-baseline justify-between mb-3 gap-2">
+                    <h3 className="font-bold text-navy-800">Toilets in {area.name}</h3>
+                    <span className="text-sm text-gray-500 flex-shrink-0">
+                      {area.count.toLocaleString('en-GB')}
+                    </span>
+                  </div>
+                  <ul className="space-y-1 mb-3">
+                    {area.toilets.map((t) => (
+                      <li key={t.id}>
+                        <Link
+                          href={canonicalToiletPath(t, city)}
+                          className="text-sm text-navy-600 hover:text-mint-600 line-clamp-1"
+                        >
+                          {toiletDisplayName(t)}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href={`/map?lat=${area.lat.toFixed(4)}&lng=${area.lng.toFixed(4)}`}
+                    className="inline-flex items-center gap-1 text-mint-600 text-sm font-semibold hover:text-mint-700"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    All {area.count.toLocaleString('en-GB')} in {area.name} on the map
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* SEO Content */}
       <section className="section bg-gray-50">
@@ -585,7 +629,7 @@ export default async function CityPage({ params }: Props) {
                     href={canonicalToiletPath(t, city)}
                     className="font-bold text-navy-800 hover:text-mint-600 line-clamp-2"
                   >
-                    {t.name}
+                    {toiletDisplayName(t)}
                   </Link>
                   {t.address && (
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">{t.address}</p>
@@ -689,13 +733,13 @@ export default async function CityPage({ params }: Props) {
             '@type': 'ItemList',
             name: `Public Toilets in ${cityInfo.fullName}`,
             description: `List of public toilet facilities in ${cityInfo.fullName}, UK`,
-            numberOfItems: toilets.length,
+            numberOfItems: total,
             itemListElement: toilets.slice(0, 10).map((toilet, index) => ({
               '@type': 'ListItem',
               position: index + 1,
               item: {
                 '@type': 'PublicToilet',
-                name: toilet.name,
+                name: toiletDisplayName(toilet),
                 address: {
                   '@type': 'PostalAddress',
                   addressLocality: cityInfo.fullName,
