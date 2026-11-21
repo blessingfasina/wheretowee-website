@@ -38,6 +38,17 @@ import {
 } from '@/lib/supabase';
 import { ToiletDetailImpression, TrackedDirectionsLink } from './Tracking';
 import MiniMap from '@/components/MiniMap';
+import {
+  feeInfo,
+  yn,
+  toiletLocality,
+  withDistances,
+  formatDistance,
+  cleanNotes,
+  toiletSummary,
+  quickAnswers,
+  toiletMetaDescription,
+} from '@/lib/toiletContent';
 
 // Revalidate every hour. Each toilet page is rendered on-demand
 // (ISR) so we don't have to bake 18k pages at build time.
@@ -109,18 +120,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(' ');
 
-  const facilityBits: string[] = [];
-  if (toilet.wheelchair === 'yes') facilityBits.push('wheelchair accessible');
-  if (toilet.baby_changing === 'yes') facilityBits.push('baby changing');
-  if (toilet.fee === 'no' || toilet.fee === 'free') facilityBits.push('free to use');
-  if (toilet.radar_key === 'yes') facilityBits.push('RADAR key required');
-  const facilityCopy = facilityBits.length > 0 ? ` (${facilityBits.join(', ')})` : '';
-
   const displayName = toiletDisplayName(toilet);
-  const title = `${displayName} — Public Toilet in ${cityName}`;
-  const description = toilet.address
-    ? `Public toilet at ${toilet.address}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`
-    : `Public toilet in ${cityName}${facilityCopy}. View accessibility info, ratings and directions on Where To Wee.`;
+  // Locality (London borough / street) separates the many same-named
+  // venues ("Tesco", "Costa") that otherwise share identical titles.
+  const locality = toiletLocality(toilet, canonicalCity, cityName);
+  const title = `${displayName}${locality ? `, ${locality}` : ''} — Public Toilet in ${cityName}`;
+  const description = toiletMetaDescription(toilet, cityName, locality);
 
   // Named venues are indexable. Generic stubs ("loo") stay noindex so
   // they don't compete with the city landing page.
@@ -257,15 +262,38 @@ export default async function ToiletDetailPage({ params }: Props) {
   //      to the next one without bouncing back to the city list.
   // Fetch a slightly larger set, then strip the current toilet and any
   // it can't differentiate by a sensible distance, and keep 5.
-  const nearbyToilets = await getNearbyToilets(
-    toilet.latitude,
-    toilet.longitude,
-    1.5, // km radius — tight enough to be genuinely "nearby"
-    20,
-  );
-  const nearbyOthers = nearbyToilets
-    .filter((n) => n.id !== toilet.id)
-    .slice(0, 5);
+  let nearbyRadiusKm = 1.5; // tight enough to be genuinely "nearby"
+  let nearbyRaw = (await getNearbyToilets(toilet.latitude, toilet.longitude, nearbyRadiusKm, 20))
+    .filter((n) => n.id !== toilet.id);
+  if (nearbyRaw.length < 3) {
+    // Rural / sparse areas: widen once so the page still offers options.
+    nearbyRadiusKm = 5;
+    nearbyRaw = (await getNearbyToilets(toilet.latitude, toilet.longitude, nearbyRadiusKm, 20))
+      .filter((n) => n.id !== toilet.id);
+  }
+  const nearbyAll = withDistances(toilet, nearbyRaw);
+  const nearbyOthers = nearbyAll.slice(0, 6);
+
+  const locality = toiletLocality(toilet, canonicalCity, cityName);
+  const summaryInput = {
+    toilet,
+    cityName,
+    locality,
+    hoist: access?.hoist ?? toilet.hoist ?? null,
+    nearest: nearbyAll[0] ?? null,
+    nearbyCount: nearbyAll.filter((n) => n.metres <= 1500).length,
+  };
+  const summary = toiletSummary(summaryInput);
+  const answers = quickAnswers(summaryInput);
+  const notes = cleanNotes(toilet.notes);
+  const fee = feeInfo(toilet.fee, toilet.payment_details);
+  const extraFacilities: string[] = [];
+  if (yn(toilet.men) === 'yes') extraFacilities.push("Men's toilets");
+  if (yn(toilet.women) === 'yes') extraFacilities.push("Women's toilets");
+  if (yn(toilet.children) === 'yes') extraFacilities.push('Child-height facilities');
+  if (yn(toilet.attended) === 'yes') extraFacilities.push('Attended');
+  if (yn(toilet.automatic) === 'yes') extraFacilities.push('Automatic (self-cleaning) unit');
+  if (yn(toilet.urinal_only) === 'yes') extraFacilities.push('Urinals only');
 
   return (
     <>
@@ -298,7 +326,10 @@ export default async function ToiletDetailPage({ params }: Props) {
           {toilet.address && (
             <p className="flex items-start gap-2 text-gray-200 mb-4">
               <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <span>{toilet.address}</span>
+              <span>
+                {toilet.address}
+                {locality && !toilet.address.toLowerCase().includes(locality.toLowerCase()) && `, ${locality}`}
+              </span>
             </p>
           )}
           {toilet.average_rating != null && (
@@ -387,6 +418,20 @@ export default async function ToiletDetailPage({ params }: Props) {
               </div>
             </div>
           )}
+          {/* About this toilet — plain-language summary built from this
+              listing's own data, plus the listing's notes. This is the
+              unique text that sets each detail page apart. */}
+          <div className="card mb-6">
+            <h2 className="text-lg font-bold text-navy-800 mb-3">About this toilet</h2>
+            <p className="text-gray-700 leading-relaxed">{summary.join(' ')}</p>
+            {notes && (
+              <div className="mt-4 border-l-4 border-mint-300 bg-mint-50/50 px-4 py-3 rounded-r-lg">
+                <h3 className="text-sm font-semibold text-navy-800 mb-1">Notes from the listing</h3>
+                <p className="text-gray-700 text-sm whitespace-pre-line">{notes}</p>
+              </div>
+            )}
+          </div>
+
           <div className="grid md:grid-cols-2 gap-6">
             {/* Confidence card OR "Help us verify" prompt */}
             {hasSignals && confidenceScore != null && confidenceLevel ? (
@@ -442,7 +487,7 @@ export default async function ToiletDetailPage({ params }: Props) {
               <ul className="space-y-3 text-gray-700">
                 <FacilityRow
                   icon={<Coins className="w-5 h-5 text-mint-600" />}
-                  label={toilet.fee === 'no' || toilet.fee === 'free' ? 'Free to use' : toilet.fee === 'yes' ? 'Paid' : 'Fee not known'}
+                  label={fee.label}
                 />
                 <FacilityRow
                   icon={<Accessibility className="w-5 h-5 text-blue-600" />}
@@ -470,6 +515,9 @@ export default async function ToiletDetailPage({ params }: Props) {
                 {toilet.opening_hours && (
                   <FacilityRow icon={<Clock className="w-5 h-5 text-navy-600" />} label={`Hours: ${toilet.opening_hours}`} />
                 )}
+                {extraFacilities.map((f) => (
+                  <FacilityRow key={f} icon={<Info className="w-5 h-5 text-gray-500" />} label={f} />
+                ))}
               </ul>
             </div>
 
@@ -511,6 +559,21 @@ export default async function ToiletDetailPage({ params }: Props) {
               )}
             </div>
           </div>
+
+          {/* Quick answers — only questions this listing can answer. */}
+          {answers.length > 0 && (
+            <div className="card mt-6">
+              <h2 className="text-lg font-bold text-navy-800 mb-4">Quick answers</h2>
+              <dl className="space-y-4">
+                {answers.map((qa) => (
+                  <div key={qa.q}>
+                    <dt className="font-semibold text-navy-800">{qa.q}</dt>
+                    <dd className="text-gray-700 mt-1">{qa.a}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
 
           {/* Helpful guidance */}
           <div className="card mt-6">
@@ -577,7 +640,7 @@ export default async function ToiletDetailPage({ params }: Props) {
                   Other toilets nearby
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  Within 1.5 km of {displayName} — handy if this one&apos;s shut.
+                  Within {nearbyRadiusKm} km of {displayName}, closest first. Handy if this one&apos;s shut.
                 </p>
               </div>
               <Link
@@ -589,7 +652,7 @@ export default async function ToiletDetailPage({ params }: Props) {
               </Link>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {nearbyOthers.map((n) => {
+              {nearbyOthers.map(({ toilet: n, metres }) => {
                 const nHref = canonicalToiletPath(n, canonicalCity);
                 const tags: string[] = [];
                 if (n.fee === 'no' || n.fee === 'free') tags.push('Free');
@@ -605,7 +668,7 @@ export default async function ToiletDetailPage({ params }: Props) {
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <h3 className="font-bold text-navy-800 group-hover:text-mint-600 line-clamp-2">
-                        {n.name}
+                        {toiletDisplayName(n)}
                       </h3>
                       {n.average_rating != null && (
                         <div className="flex items-center gap-1 text-sm flex-shrink-0">
@@ -614,6 +677,9 @@ export default async function ToiletDetailPage({ params }: Props) {
                         </div>
                       )}
                     </div>
+                    <p className="text-sm font-semibold text-mint-700 mb-1">
+                      {formatDistance(metres)} away
+                    </p>
                     {n.address && (
                       <p className="text-sm text-gray-600 mb-3 line-clamp-2">{n.address}</p>
                     )}
@@ -646,6 +712,7 @@ export default async function ToiletDetailPage({ params }: Props) {
             '@type': 'PublicToilet',
             '@id': canonicalUrl,
             name: displayName,
+            description: summary.join(' '),
             ...(toilet.address && {
               address: {
                 '@type': 'PostalAddress',

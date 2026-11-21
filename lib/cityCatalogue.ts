@@ -87,6 +87,11 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/// Borough (or other configured area) named in an address, if any.
+export function areaForAddress(address: string | null, citySlug: string): string | null {
+  return areaFor(address, AREAS_BY_CITY[citySlug]);
+}
+
 function areaFor(address: string | null, areas: string[] | undefined): string | null {
   if (!address || !areas) return null;
   const hay = address.toLowerCase();
